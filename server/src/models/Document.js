@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { validateDocumentTree } from '../validators/ast.validator.js';
 
 const DocumentSchema = new mongoose.Schema({
   title: {
@@ -19,6 +20,24 @@ const DocumentSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Document pre-save tree validation
+DocumentSchema.pre('save', async function(next) {
+  if (this.bypassTreeValidation) {
+    return next();
+  }
+
+  try {
+    const ASTNode = mongoose.model('ASTNode');
+    const rootExists = await ASTNode.exists({ _id: this.rootNodeId });
+    if (rootExists) {
+      await validateDocumentTree(this._id);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 const Document = mongoose.model('Document', DocumentSchema);

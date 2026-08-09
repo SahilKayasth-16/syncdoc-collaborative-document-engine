@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { validateDocumentTree } from '../validators/ast.validator.js';
 
 const ASTNodeSchema = new mongoose.Schema({
   documentId: {
@@ -58,6 +59,27 @@ ASTNodeSchema.path('parentId').validate(function(value) {
 ASTNodeSchema.index({ documentId: 1 });
 ASTNodeSchema.index({ parentId: 1 });
 ASTNodeSchema.index({ documentId: 1, parentId: 1, position: 1 });
+
+// Pre-save hook for deep recursive validation
+ASTNodeSchema.pre('save', async function(next) {
+  // Allow bypassing tree validation (useful during initial root creation or seeding)
+  if (this.bypassTreeValidation) {
+    return next();
+  }
+
+  try {
+    const Document = mongoose.model('Document');
+    const docExists = await Document.exists({ _id: this.documentId });
+
+    // If the document container exists in the database, we can validate the entire tree
+    if (docExists) {
+      await validateDocumentTree(this.documentId, this);
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 const ASTNode = mongoose.model('ASTNode', ASTNodeSchema);
 export default ASTNode;
