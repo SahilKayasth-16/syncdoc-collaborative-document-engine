@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+
 import healthRouter from './routes/health.routes.js';
+import documentRouter from './routes/document.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -14,6 +16,7 @@ app.use(express.json());
 
 // API routing
 app.use('/api', healthRouter);
+app.use('/api/documents', documentRouter)
 
 // Basic centralized error handling
 app.use((err, req, res, next) => {

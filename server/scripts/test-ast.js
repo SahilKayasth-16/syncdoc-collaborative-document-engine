@@ -30,7 +30,10 @@ async function runTests() {
       position: 0,
       data: {}
     });
+
+    rootNode.bypassTreeValidation = true;
     await rootNode.save();
+
     console.log(`Root Node Created: ${rootNode._id}`);
 
     // 3. Create the Document
@@ -40,6 +43,11 @@ async function runTests() {
       title: 'Technical Specification',
       rootNodeId: rootNode._id
     });
+
+    doc.bypassTreeValidation = true;
+    await doc.save();
+
+    doc.bypassTreeValidation = false;
     await doc.save();
     console.log(`Document Container Created: ${doc.title} (${doc._id})`);
 

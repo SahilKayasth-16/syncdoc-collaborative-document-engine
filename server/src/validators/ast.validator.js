@@ -70,11 +70,13 @@ export async function validateDocumentTree(documentId, nodeBeingSaved = null) {
   const visited = new Set();
 
   const ALLOWED_CHILDREN = {
-    document: ['section', 'heading', 'paragraph', 'code_block'],
-    section: ['section', 'heading', 'paragraph', 'code_block'],
+    document: ['section', 'heading', 'paragraph', 'code_block', 'list', 'quote'],
+    section: ['section', 'heading', 'paragraph', 'code_block', 'list', 'quote'],
     heading: ['text'],
     paragraph: ['text'],
     code_block: ['text'],
+    list: [],
+    quote: ['text'],
     text: []
   };
 

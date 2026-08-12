@@ -88,7 +88,6 @@ export const getDocumentTree = async (documentId) => {
 
     const nodes = await ASTNode.find({ documentId })
         .select('_id documentId parentId type position data createdAt updatedAt')
-        .sort({ position: 1 })
         .lean();
 
     const nodeMap = new Map();
@@ -110,9 +109,20 @@ export const getDocumentTree = async (documentId) => {
             const parent = nodeMap.get(node.parentId.toString());
 
             if (parent) {
-                parent.children.push(nodeMap.get(node._id.toString()));
+                const child = nodeMap.get(node._id.toString());
+
+                if (child) {
+                    parent.children.push(child);
+                }
             }
         }
+    }
+
+    // Position determines ordering only among siblings.
+    for (const treeNode of nodeMap.values()) {
+        treeNode.children.sort(
+            (a, b) => a.position - b.position
+        );
     }
 
     const root = nodeMap.get(document.rootNodeId.toString());

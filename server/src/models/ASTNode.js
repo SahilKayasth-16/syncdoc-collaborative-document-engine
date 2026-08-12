@@ -16,7 +16,7 @@ const ASTNodeSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Node type is required'],
     enum: {
-      values: ['document', 'section', 'heading', 'paragraph', 'code_block', 'text'],
+      values: ['document', 'section', 'heading', 'paragraph', 'code_block', 'text', 'list', 'quote'],
       message: '{VALUE} is not a valid node type'
     }
   },
