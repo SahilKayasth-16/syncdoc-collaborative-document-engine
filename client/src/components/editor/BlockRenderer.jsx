@@ -26,7 +26,7 @@ const BlockRenderer = ({ node }) => {
             return <ParagraphBlock node={node} />;
         
         case "code_block":
-            return <ParagraphBlock node={node} />;
+            return <CodeBlock node={node} />;
         
         case "list":
             return <ListBlock node={node} />;

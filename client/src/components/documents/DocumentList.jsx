@@ -14,14 +14,7 @@ const DocumentList = ({ documents }) => {
           </svg>
         </div>
         <h3>No documents found</h3>
-        <p>Your library is empty. Click the button below to create your very first SyncDoc document.</p>
-        <button className="btn btn-primary" style={{ marginTop: '1.25rem' }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span>Create Document</span>
-        </button>
+        <p>Your document library is empty. Seed or create documents to begin editing.</p>
       </div>
     );
   }
@@ -29,10 +22,11 @@ const DocumentList = ({ documents }) => {
   return (
     <div className="document-grid" id="documents-grid-layout">
       {documents.map((doc) => (
-        <DocumentCard key={doc.id} document={doc} />
+        <DocumentCard key={doc._id || doc.id} document={doc} />
       ))}
     </div>
   );
 };
 
 export default DocumentList;
+

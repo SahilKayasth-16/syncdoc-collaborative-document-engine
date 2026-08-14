@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import DocumentList from '../components/documents/DocumentList';
-
-const MOCK_DOCUMENTS = [
-  { id: 1, title: 'API Architecture Spec', updatedAt: 'Updated 2 minutes ago' },
-  { id: 2, title: 'Database Design', updatedAt: 'Updated 1 hour ago' },
-  { id: 3, title: 'Project Roadmap', updatedAt: 'Updated 3 days ago' },
-  { id: 4, title: 'Product Requirements Document', updatedAt: 'Updated Yesterday' }
-];
+import { getDocuments } from '../services/documentService';
 
 const DocumentsPage = () => {
-  const [isEmpty, setIsEmpty] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [apiStatus, setApiStatus] = useState('checking'); // 'checking' | 'connected' | 'disconnected'
 
+  const fetchDocumentList = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getDocuments();
+      setDocuments(data);
+      setApiStatus('connected');
+    } catch (err) {
+      setError(err.message || 'Failed to load documents.');
+      setApiStatus('disconnected');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchDocumentList();
+
+    // Check backend health periodically
     const checkBackendHealth = async () => {
       try {
-        // Query our Express server (port 5050 for local environment conflict resolution)
         const res = await fetch('http://localhost:5050/api/health');
         if (res.ok) {
           const data = await res.json();
@@ -27,17 +40,14 @@ const DocumentsPage = () => {
         } else {
           setApiStatus('disconnected');
         }
-      } catch (err) {
+      } catch {
         setApiStatus('disconnected');
       }
     };
 
-    checkBackendHealth();
-    const interval = setInterval(checkBackendHealth, 5000); // Check every 5s
+    const interval = setInterval(checkBackendHealth, 5000);
     return () => clearInterval(interval);
   }, []);
-
-  const documents = isEmpty ? [] : MOCK_DOCUMENTS;
 
   return (
     <div className="dashboard-container" id="syncdoc-dashboard-container">
@@ -63,20 +73,6 @@ const DocumentsPage = () => {
             <span>Documents</span>
           </a>
         </nav>
-
-        <div className="sidebar-footer">
-          <div className="state-control">
-            <label className="toggle-label" id="empty-state-toggle-label">
-              <input 
-                type="checkbox" 
-                id="empty-state-checkbox"
-                checked={isEmpty} 
-                onChange={(e) => setIsEmpty(e.target.checked)} 
-              />
-              <span>Simulate Empty State</span>
-            </label>
-          </div>
-        </div>
       </aside>
 
       {/* Main Panel */}
@@ -97,19 +93,33 @@ const DocumentsPage = () => {
                 {apiStatus === 'disconnected' && 'API Disconnected'}
               </span>
             </div>
-
-            <button className="btn btn-primary" id="create-document-btn">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              <span>Create Document</span>
-            </button>
           </div>
         </header>
 
         <section className="content-area">
-          <DocumentList documents={documents} />
+          {loading ? (
+            <div className="dashboard-loading" id="documents-loading-state">
+              <div className="spinner"></div>
+              <p>Loading documents...</p>
+            </div>
+          ) : error ? (
+            <div className="dashboard-error" id="documents-error-state">
+              <div className="error-icon-wrapper">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+              <h3>Failed to load documents</h3>
+              <p>{error}</p>
+              <button className="btn btn-primary" onClick={fetchDocumentList} style={{ marginTop: '1rem' }}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <DocumentList documents={documents} />
+          )}
         </section>
       </main>
     </div>
@@ -117,3 +127,4 @@ const DocumentsPage = () => {
 };
 
 export default DocumentsPage;
+

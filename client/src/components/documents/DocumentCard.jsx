@@ -1,11 +1,28 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const DocumentCard = ({ document }) => {
-  const { title, updatedAt } = document;
+  const { title, updatedAt, createdAt } = document;
+  const docId = document._id || document.id;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Recently';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return String(dateString);
+      return date.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return String(dateString);
+    }
+  };
 
   // Choose an appropriate icon based on the title keywords
   const getIcon = () => {
-    const lowerTitle = title.toLowerCase();
+    const lowerTitle = (title || '').toLowerCase();
     if (lowerTitle.includes('api') || lowerTitle.includes('spec') || lowerTitle.includes('architecture')) {
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -41,28 +58,37 @@ const DocumentCard = ({ document }) => {
     );
   };
 
+  const formattedDate = formatDate(updatedAt || createdAt);
+
   return (
-    <div className="document-card" id={`document-card-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}>
-      <div className="card-header">
-        <div className="icon-wrapper">
-          {getIcon()}
+    <Link 
+      to={`/documents/${docId}/edit`} 
+      className="document-card-link"
+      style={{ textDecoration: 'none', color: 'inherit' }}
+    >
+      <div className="document-card" id={`document-card-${(title || 'doc').toLowerCase().replace(/[^a-z0-9]/g, '-')}`}>
+        <div className="card-header">
+          <div className="icon-wrapper">
+            {getIcon()}
+          </div>
+          <div className="card-badge">Document</div>
         </div>
-        <div className="card-badge">Document</div>
+        <div className="card-body">
+          <h3 className="document-title">{title}</h3>
+        </div>
+        <div className="card-footer">
+          <span className="last-updated">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            Updated {formattedDate}
+          </span>
+        </div>
       </div>
-      <div className="card-body">
-        <h3 className="document-title">{title}</h3>
-      </div>
-      <div className="card-footer">
-        <span className="last-updated">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          {updatedAt}
-        </span>
-      </div>
-    </div>
+    </Link>
   );
 };
 
 export default DocumentCard;
+
