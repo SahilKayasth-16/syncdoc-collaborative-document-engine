@@ -25,7 +25,7 @@ export const createWebSocketServer = (server) => {
         server,
     });
 
-    wss.on("connection", (ws, request) => {
+    wss.on("connection", async (ws, request) => {
         try {
             const url = new URL(
                 request.url,
@@ -63,10 +63,19 @@ export const createWebSocketServer = (server) => {
             /**
              * Get or create the collaboration room.
              *
-             * Multiple clients using the same documentId
-             * receive the SAME room and SAME Y.Doc.
+             * The first client causes the room to:
+             *
+             * 1. Load the AST from MongoDB.
+             * 2. Create a Y.Doc.
+             * 3. Populate the Y.Doc from the AST.
+             *
+             * Subsequent clients reuse the same room
+             * and the same populated Y.Doc.
              */
-            const room = addClientToRoom(documentId, ws);
+            const room = await addClientToRoom(
+                documentId,
+                ws
+            );
 
             /**
              * Store document ID on WebSocket instance.
@@ -80,7 +89,8 @@ export const createWebSocketServer = (server) => {
              * Send the current Yjs document state
              * to the newly connected client.
              *
-             * This is important when joining an existing room.
+             * The state now contains the AST-loaded
+             * title and blocks.
              */
             sendInitialState(room, ws);
 
@@ -131,7 +141,10 @@ export const createWebSocketServer = (server) => {
                     /**
                      * Apply update to the room's shared Y.Doc.
                      */
-                    applyDocumentUpdate(room.ydoc, update);
+                    applyDocumentUpdate(
+                        room.ydoc,
+                        update
+                    );
 
                     /**
                      * Broadcast the same update to all
@@ -154,7 +167,10 @@ export const createWebSocketServer = (server) => {
              * Handle client disconnection.
              */
             ws.on("close", () => {
-                removeClientFromRoom(documentId, ws);
+                removeClientFromRoom(
+                    documentId,
+                    ws
+                );
 
                 console.log(
                     `[WebSocket] Client disconnected from the document: ${documentId}`

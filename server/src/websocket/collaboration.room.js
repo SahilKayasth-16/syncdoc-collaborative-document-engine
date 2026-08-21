@@ -1,8 +1,11 @@
 import {
     createYDocument,
     destroyYDocument,
-    encodeDocumentState
+    encodeDocumentState,
+    loadASTIntoYDocument
 } from "./yjs.document.js";
+
+import { getDocumentTree } from "../services/document.service.js";
 
 /**
  * Active Collaboration Rooms.
@@ -10,48 +13,137 @@ import {
  * Key   -> documentId
  * Value -> { documentId, ydoc, clients }
  */
-
 const rooms = new Map();
 
 /**
- * Create an existing room or a new one.
+ * Rooms currently being initialized.
  *
- * The first client joining a document creates the room
- * and its shared Yjs document.
+ * This prevents multiple clients joining the same new
+ * document at the exact same time from creating
+ * multiple Y.Docs.
+ *
+ * Key   -> documentId
+ * Value -> Promise<room>
+ */
+const initializingRooms = new Map();
+
+/**
+ * Create an existing room or initialize a new one.
+ *
+ * The first client joining a document:
+ *
+ * 1. Loads the document AST from MongoDB.
+ * 2. Creates a Y.Doc.
+ * 3. Loads the AST into the Y.Doc.
+ * 4. Stores the populated room.
+ *
+ * Subsequent clients reuse the same room and Y.Doc.
  *
  * @param {string} documentId
- * @returns {object}
+ * @returns {Promise<object>}
  */
-export const getOrCreateRoom = (documentId) => {
-    let room = rooms.get(documentId);
+export const getOrCreateRoom = async (documentId) => {
+    /**
+     * Room already exists.
+     * Reuse the existing populated Y.Doc.
+     */
+    const existingRoom = rooms.get(documentId);
 
-    if (!room) {
-        room = {
-            documentId,
-            ydoc: createYDocument(),
-            clients: new Set()
-        };
-
-        rooms.set(documentId, room);
-
-        console.log(`[Collaboration] Room Created: ${documentId}`);
+    if (existingRoom) {
+        return existingRoom;
     }
 
-    return room;
+    /**
+     * Another client may already be initializing
+     * this same document.
+     *
+     * Wait for that initialization instead of
+     * creating another Y.Doc.
+     */
+    const existingInitialization = initializingRooms.get(documentId);
+
+    if (existingInitialization) {
+        return await existingInitialization;
+    }
+
+    /**
+     * Initialize the room exactly once.
+     */
+    const initialization = (async () => {
+        try {
+            console.log(
+                `[Collaboration] Loading AST for room: ${documentId}`
+            );
+
+            /**
+             * Load the complete AST from MongoDB.
+             */
+            const documentTree = await getDocumentTree(documentId);
+
+            if (!documentTree) {
+                throw new Error(
+                    `Document not found: ${documentId}`
+                );
+            }
+
+            /**
+             * Create the shared Yjs document.
+             */
+            const ydoc = createYDocument();
+
+            /**
+             * Populate the Y.Doc from the MongoDB AST.
+             */
+            loadASTIntoYDocument(documentTree, ydoc);
+
+            /**
+             * Create the collaboration room with
+             * the already-populated Y.Doc.
+             */
+            const room = {
+                documentId,
+                ydoc,
+                clients: new Set()
+            };
+
+            rooms.set(documentId, room);
+
+            console.log(
+                `[Collaboration] Room Created and AST Loaded: ${documentId}`
+            );
+
+            return room;
+        } catch (error) {
+            console.error(
+                `[Collaboration] Room initialization failed (${documentId}):`,
+                error.message
+            );
+
+            throw error;
+        } finally {
+            /**
+             * Initialization is complete.
+             * Remove the temporary promise so future
+             * clients use the actual room.
+             */
+            initializingRooms.delete(documentId);
+        }
+    })();
+
+    initializingRooms.set(documentId, initialization);
+
+    return await initialization;
 };
 
 /**
  * Add a WebSocket client to a collaboration room.
  *
- * If the room already contains a Y.Doc, the current
- * document state can be sent to the newly connected client.
- *
  * @param {string} documentId
  * @param {WebSocket} client
- * @returns {object}
+ * @returns {Promise<object>}
  */
-export const addClientToRoom = (documentId, client) => {
-    const room = getOrCreateRoom(documentId);
+export const addClientToRoom = async (documentId, client) => {
+    const room = await getOrCreateRoom(documentId);
 
     room.clients.add(client);
 

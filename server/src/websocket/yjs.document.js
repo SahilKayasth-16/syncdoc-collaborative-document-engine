@@ -74,6 +74,134 @@ export const getDocumentTitle = (ydoc) => {
 };
 
 /**
+ * Load a MongoDB AST document tree into a Y.Doc.
+ *
+ * MongoDB AST structure:
+ *
+ * Document
+ *   └── root
+ *        ├── heading
+ *        ├── paragraph
+ *        ├── codeBlock
+ *        ├── list
+ *        └── quote
+ *
+ * Yjs structure:
+ *
+ * Y.Doc
+ *   └── Y.Map("document")
+ *        ├── title
+ *        └── blocks
+ *
+ * The root AST node itself is not stored as a block.
+ * Its children become the collaborative blocks.
+ *
+ * @param {object} documentTree
+ * @param {Y.Doc} ydoc
+ */
+export const loadASTIntoYDocument = (documentTree, ydoc) => {
+    if (!documentTree) {
+        throw new Error("Document tree is required.");
+    }
+
+    if (!ydoc) {
+        throw new Error("Y.Doc is required.");
+    }
+
+    if (!documentTree.root) {
+        throw new Error("Document tree root is required.");
+    }
+
+    const documentMap = getDocumentMap(ydoc);
+    const blocks = getDocumentBlocks(ydoc);
+
+    /**
+     * Prevent duplicate initialization.
+     *
+     * This function should normally only be called when
+     * a collaboration room is created for the first time.
+     */
+    if (documentMap.has("title") || blocks.length > 0) {
+        return;
+    }
+
+    /**
+     * Load document metadata.
+     */
+    setDocumentTitle(
+        ydoc,
+        documentTree.title ?? ""
+    );
+
+    /**
+     * Convert each AST child into a plain collaborative
+     * block object.
+     *
+     * The block keeps the important AST information:
+     * - id
+     * - type
+     * - position
+     * - data
+     *
+     * Children are recursively converted as well.
+     */
+    const convertASTNode = (node) => {
+        if (!node) {
+            return null;
+        }
+
+        return {
+            id: node.id?.toString(),
+            type: node.type,
+            position: node.position,
+            data: node.data ?? {},
+            children: Array.isArray(node.children)
+                ? node.children
+                    .map(convertASTNode)
+                    .filter(Boolean)
+                : []
+        };
+    };
+
+    /**
+     * The root "document" node is the container.
+     * Its children are the actual collaborative blocks.
+     */
+    const collaborativeBlocks = Array.isArray(
+        documentTree.root.children
+    )
+        ? documentTree.root.children
+            .map(convertASTNode)
+            .filter(Boolean)
+        : [];
+
+    console.log(
+        "[Yjs] AST root children:",
+        documentTree.root.children?.length
+    );
+
+    console.log(
+        "[Yjs] Collaborative blocks before insert:",
+        collaborativeBlocks.length,
+        collaborativeBlocks
+    );
+
+    /**
+     * Insert the complete AST block structure into
+     * the Y.Array in a single Yjs transaction.
+     */
+    ydoc.transact(() => {
+        blocks.insert(0, collaborativeBlocks);
+    });
+
+    console.log(
+        "[Yjs] Y.Array blocks after insert:",
+        blocks.length,
+        blocks.toArray()
+    );
+};
+
+/**
  * Encode the complete current Yjs document state.
  *
  * This state can be sent to a newly connected client.

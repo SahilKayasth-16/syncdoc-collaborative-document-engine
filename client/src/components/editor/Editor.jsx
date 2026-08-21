@@ -71,23 +71,12 @@ const Editor = ({ documentId }) => {
                                 ydoc
                             );
 
-                            /**
-                             * Day 9:
-                             * Verify that the client receives the shared Y.Doc.
-                             *
-                             * We are NOT replacing the REST AST yet.
-                             * That comes when the collaborative editor state
-                             * is fully mapped to the AST/block model.
-                             */
-                            const documentMap =
-                                ydoc.getMap("document");
+                            const documentMap = ydoc.getMap("document");
 
-                            const title =
-                                documentMap.get("title");
+                            const title = documentMap.get("title");
 
-                            const blocks =
-                                documentMap.get("blocks");
-
+                            const blocks = documentMap.get("blocks");
+                            
                             console.log(
                                 "[Editor] Collaborative title:",
                                 title
@@ -95,7 +84,7 @@ const Editor = ({ documentId }) => {
 
                             console.log(
                                 "[Editor] Collaborative blocks:",
-                                blocks
+                                blocks.toArray()
                             );
                         },
 
