@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const EditorHeader = ({ title = "Untitled document" }) => {
+const EditorHeader = ({ title = "Untitled document", activeUsers = [], currentUser = null }) => {
     return (
         <header className="editor-header" id="editor-header">
             <div className="editor-header-left">
@@ -14,6 +14,26 @@ const EditorHeader = ({ title = "Untitled document" }) => {
                 <div className="editor-header-divider"></div>
                 <h1 className="editor-title">{title}</h1>
             </div>
+            {activeUsers.length > 0 && (
+                <div className="editor-active-users">
+                    <span className="active-users-label">Collaborators:</span>
+                    <div className="user-badges-container">
+                        {activeUsers.map((u) => {
+                            const isSelf = currentUser && u.userId === currentUser.userId;
+                            return (
+                                <span
+                                    key={u.userId}
+                                    className={`user-badge ${isSelf ? "user-badge-self" : ""}`}
+                                    title={isSelf ? `${u.name} (You)` : u.name}
+                                >
+                                    <span className="user-online-dot"></span>
+                                    {u.name} {isSelf ? "(You)" : ""}
+                                </span>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
         </header>
     );
 };

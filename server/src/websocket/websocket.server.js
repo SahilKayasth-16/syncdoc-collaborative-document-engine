@@ -4,7 +4,11 @@ import {
     addClientToRoom,
     removeClientFromRoom,
     sendInitialState,
-    broadcastUpdate
+    broadcastUpdate,
+    addUserPresence,
+    acquireBlockLock,
+    releaseBlockLock,
+    refreshBlockLock
 } from "./collaboration.room.js";
 
 import { applyDocumentUpdate } from "./yjs.document.js";
@@ -60,6 +64,169 @@ export const createWebSocketServer = (server) => {
                 return;
             }
 
+            let room = null;
+            const pendingMessages = [];
+
+            const handleIncomingMessage = (message, isBinary) => {
+                if (!room) {
+                    pendingMessages.push({ message, isBinary });
+                    return;
+                }
+
+                try {
+                    if (!isBinary) {
+                        let data;
+                        try {
+                            data = JSON.parse(message.toString());
+                        } catch {
+                            console.warn(
+                                `[WebSocket] Received invalid text message from document: ${documentId}`
+                            );
+                            return;
+                        }
+
+                        if (!data || typeof data !== "object" || !data.type) {
+                            console.warn(
+                                `[WebSocket] Received malformed message missing type from document: ${documentId}`
+                            );
+                            return;
+                        }
+
+                        switch (data.type) {
+                            case "presence:identify":
+                            case "identify": {
+                                if (!data.user || !data.user.userId) {
+                                    return;
+                                }
+                                addUserPresence(documentId, data.user, ws);
+                                break;
+                            }
+
+                            case "lock:acquire": {
+                                if (!data.blockId) {
+                                    return;
+                                }
+                                if (!ws.userId) {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:rejected",
+                                        blockId: data.blockId,
+                                        reason: "UNIDENTIFIED_USER"
+                                    }));
+                                    return;
+                                }
+                                const result = acquireBlockLock(documentId, data.blockId, {
+                                    userId: ws.userId,
+                                    name: ws.userName
+                                });
+                                if (result.success) {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:acquired",
+                                        blockId: data.blockId,
+                                        userId: ws.userId,
+                                        timestamp: result.lock.timestamp
+                                    }));
+                                } else {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:rejected",
+                                        blockId: data.blockId,
+                                        reason: result.reason,
+                                        lockedBy: result.lockedBy
+                                    }));
+                                }
+                                break;
+                            }
+
+                            case "lock:release": {
+                                if (!data.blockId) {
+                                    return;
+                                }
+                                if (!ws.userId) {
+                                    return;
+                                }
+                                const result = releaseBlockLock(documentId, data.blockId, {
+                                    userId: ws.userId
+                                });
+                                if (result.success) {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:released",
+                                        blockId: data.blockId,
+                                        userId: ws.userId
+                                    }));
+                                } else {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:rejected",
+                                        blockId: data.blockId,
+                                        reason: result.reason,
+                                        lockedBy: result.lockedBy
+                                    }));
+                                }
+                                break;
+                            }
+
+                            case "lock:refresh": {
+                                if (!data.blockId || !ws.userId) {
+                                    return;
+                                }
+                                const result = refreshBlockLock(documentId, data.blockId, {
+                                    userId: ws.userId
+                                });
+                                if (result.success) {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:refreshed",
+                                        blockId: data.blockId,
+                                        userId: ws.userId,
+                                        timestamp: result.lock.timestamp
+                                    }));
+                                } else {
+                                    ws.send(JSON.stringify({
+                                        type: "lock:rejected",
+                                        blockId: data.blockId,
+                                        reason: result.reason
+                                    }));
+                                }
+                                break;
+                            }
+
+                            default:
+                                console.log(`[WebSocket] Unknown text message type: ${data.type}`);
+                                break;
+                        }
+                        return;
+                    }
+
+                    /**
+                     * Convert incoming WebSocket data
+                     * into Uint8Array expected by Yjs.
+                     */
+                    const update = new Uint8Array(message);
+
+                    /**
+                     * Apply update to the room's shared Y.Doc.
+                     */
+                    applyDocumentUpdate(
+                        room.ydoc,
+                        update
+                    );
+
+                    /**
+                     * Broadcast the same update to all
+                     * other clients in this room.
+                     */
+                    broadcastUpdate(
+                        documentId,
+                        update,
+                        ws
+                    );
+                } catch (error) {
+                    console.error(
+                        `[WebSocket] Yjs update failed (${documentId}):`,
+                        error.message
+                    );
+                }
+            };
+
+            ws.on("message", handleIncomingMessage);
+
             /**
              * Get or create the collaboration room.
              *
@@ -72,7 +239,7 @@ export const createWebSocketServer = (server) => {
              * Subsequent clients reuse the same room
              * and the same populated Y.Doc.
              */
-            const room = await addClientToRoom(
+            room = await addClientToRoom(
                 documentId,
                 ws
             );
@@ -113,55 +280,12 @@ export const createWebSocketServer = (server) => {
             );
 
             /**
-             * Handle incoming Yjs updates.
-             *
-             * Client
-             *   ↓
-             * WebSocket message
-             *   ↓
-             * Apply update to shared Y.Doc
-             *   ↓
-             * Broadcast to other clients
+             * Process any messages that arrived while room was initializing.
              */
-            ws.on("message", (message, isBinary) => {
-                try {
-                    if (!isBinary) {
-                        console.log(
-                            `[WebSocket] Ignoring non-binary message from ${documentId}`
-                        );
-                        return;
-                    }
-
-                    /**
-                     * Convert incoming WebSocket data
-                     * into Uint8Array expected by Yjs.
-                     */
-                    const update = new Uint8Array(message);
-
-                    /**
-                     * Apply update to the room's shared Y.Doc.
-                     */
-                    applyDocumentUpdate(
-                        room.ydoc,
-                        update
-                    );
-
-                    /**
-                     * Broadcast the same update to all
-                     * other clients in this room.
-                     */
-                    broadcastUpdate(
-                        documentId,
-                        update,
-                        ws
-                    );
-                } catch (error) {
-                    console.error(
-                        `[WebSocket] Yjs update failed (${documentId}):`,
-                        error.message
-                    );
-                }
-            });
+            while (pendingMessages.length > 0) {
+                const pending = pendingMessages.shift();
+                handleIncomingMessage(pending.message, pending.isBinary);
+            }
 
             /**
              * Handle client disconnection.

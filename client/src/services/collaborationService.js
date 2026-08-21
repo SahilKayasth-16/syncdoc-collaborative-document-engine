@@ -4,7 +4,8 @@ const WS_BASE_URL = "ws://localhost:5050";
 
 export const createCollaborationConnection = (
     documentId,
-    callbacks = {}
+    callbacks = {},
+    user = null
 ) => {
     const ydoc = new Y.Doc();
 
@@ -19,22 +20,37 @@ export const createCollaborationConnection = (
      */
     ws.onopen = () => {
         callbacks.onOpen?.();
+
+        if (user && user.userId) {
+            ws.send(JSON.stringify({
+                type: "presence:identify",
+                user
+            }));
+        }
     };
 
     /**
-     * Receive Yjs updates from the server.
+     * Receive Yjs updates and collaboration protocol messages from the server.
      */
     ws.onmessage = async (event) => {
         try {
-            /**
-             * Ignore non-Yjs messages such as the
-             * Day 8 "connected" JSON message.
-             */
             if (typeof event.data === "string") {
                 try {
                     const message = JSON.parse(event.data);
 
                     callbacks.onMessage?.(message);
+
+                    if (message.type === "presence:update") {
+                        callbacks.onPresenceUpdate?.(message.users || []);
+                    } else if (message.type === "locks:update") {
+                        callbacks.onLocksUpdate?.(message.locks || []);
+                    } else if (message.type === "lock:acquired") {
+                        callbacks.onLockAcquired?.(message);
+                    } else if (message.type === "lock:rejected") {
+                        callbacks.onLockRejected?.(message);
+                    } else if (message.type === "lock:released") {
+                        callbacks.onLockReleased?.(message);
+                    }
 
                     return;
                 } catch {
@@ -101,6 +117,42 @@ export const createCollaborationConnection = (
     return {
         ydoc,
         ws,
+
+        identify(userObj) {
+            if (ws.readyState === WebSocket.OPEN && userObj && userObj.userId) {
+                ws.send(JSON.stringify({
+                    type: "presence:identify",
+                    user: userObj
+                }));
+            }
+        },
+
+        acquireBlockLock(blockId) {
+            if (ws.readyState === WebSocket.OPEN && blockId) {
+                ws.send(JSON.stringify({
+                    type: "lock:acquire",
+                    blockId
+                }));
+            }
+        },
+
+        releaseBlockLock(blockId) {
+            if (ws.readyState === WebSocket.OPEN && blockId) {
+                ws.send(JSON.stringify({
+                    type: "lock:release",
+                    blockId
+                }));
+            }
+        },
+
+        refreshBlockLock(blockId) {
+            if (ws.readyState === WebSocket.OPEN && blockId) {
+                ws.send(JSON.stringify({
+                    type: "lock:refresh",
+                    blockId
+                }));
+            }
+        },
 
         /**
          * Close WebSocket and destroy local Y.Doc.

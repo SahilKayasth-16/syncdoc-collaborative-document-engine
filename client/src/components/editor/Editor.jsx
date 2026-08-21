@@ -17,6 +17,19 @@ const Editor = ({ documentId }) => {
         "connecting"
     );
 
+    const [activeUsers, setActiveUsers] = useState([]);
+    const [blockLocks, setBlockLocks] = useState([]);
+
+    const [currentUser] = useState(() => {
+        const id = Math.floor(100 + Math.random() * 900);
+        return {
+            userId: `user-${id}`,
+            name: `User ${String.fromCharCode(65 + (id % 26))}`
+        };
+    });
+
+    const [collaborationInstance, setCollaborationInstance] = useState(null);
+
     useEffect(() => {
         if (!documentId) {
             setError("Document ID is required.");
@@ -59,6 +72,18 @@ const Editor = ({ documentId }) => {
                             console.log(
                                 `[Editor] Connected to collaboration room: ${documentId}`
                             );
+                        },
+
+                        onPresenceUpdate: (users) => {
+                            if (!cancelled) {
+                                setActiveUsers(users);
+                            }
+                        },
+
+                        onLocksUpdate: (locks) => {
+                            if (!cancelled) {
+                                setBlockLocks(locks);
+                            }
                         },
 
                         onUpdate: (ydoc) => {
@@ -108,8 +133,13 @@ const Editor = ({ documentId }) => {
                                 `[Editor] Collaboration disconnected: ${documentId}`
                             );
                         }
-                    }
+                    },
+                    currentUser
                 );
+
+                if (!cancelled) {
+                    setCollaborationInstance(collaboration);
+                }
             } catch (err) {
                 if (!cancelled) {
                     console.error(
@@ -143,9 +173,22 @@ const Editor = ({ documentId }) => {
             if (collaboration) {
                 collaboration.disconnect();
                 collaboration = null;
+                setCollaborationInstance(null);
             }
         };
-    }, [documentId]);
+    }, [documentId, currentUser]);
+
+    const handleAcquireLock = (blockId) => {
+        if (collaborationInstance) {
+            collaborationInstance.acquireBlockLock(blockId);
+        }
+    };
+
+    const handleReleaseLock = (blockId) => {
+        if (collaborationInstance) {
+            collaborationInstance.releaseBlockLock(blockId);
+        }
+    };
 
     if (loading) {
         return (
@@ -260,10 +303,20 @@ const Editor = ({ documentId }) => {
             id="editor-container"
         >
             <div className="editor">
-                <EditorHeader title={document.title} />
+                <EditorHeader
+                    title={document.title}
+                    activeUsers={activeUsers}
+                    currentUser={currentUser}
+                />
 
                 <main className="editor-canvas">
-                    <BlockList nodes={nodes} />
+                    <BlockList
+                        nodes={nodes}
+                        blockLocks={blockLocks}
+                        currentUser={currentUser}
+                        onAcquireLock={handleAcquireLock}
+                        onReleaseLock={handleReleaseLock}
+                    />
                 </main>
 
                 <EditorStatus
