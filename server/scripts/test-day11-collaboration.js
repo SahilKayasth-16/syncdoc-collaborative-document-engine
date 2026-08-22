@@ -7,6 +7,7 @@ import * as Y from "yjs";
 import connectDB from "../src/config/database.js";
 import app from "../src/app.js";
 import { createWebSocketServer } from "../src/websocket/websocket.server.js";
+import Document from "../src/models/Document.js";
 import { getDocumentTree } from "../src/services/document.service.js";
 import {
     getOrCreateRoom,
@@ -21,11 +22,7 @@ import {
     removeRoom
 } from "../src/websocket/collaboration.room.js";
 
-dotenv.config();
-
-const DOCUMENT_ID = "6a873f40721f8def908c6ee5";
 const TEST_PORT = 5055;
-const WS_URL = `ws://localhost:${TEST_PORT}/ws/documents/${DOCUMENT_ID}`;
 
 const runTests = async () => {
     let server = null;
@@ -35,6 +32,14 @@ const runTests = async () => {
         console.log("==================================================\n");
 
         await connectDB();
+
+        let doc = await Document.findOne();
+        if (!doc) {
+            const { createDocument } = await import("../src/services/document.service.js");
+            doc = await createDocument("Day 11 Reg Test Doc");
+        }
+        const DOCUMENT_ID = doc._id.toString();
+        const WS_URL = `ws://localhost:${TEST_PORT}/ws/documents/${DOCUMENT_ID}`;
 
         // Start temporary test server
         server = http.createServer(app);

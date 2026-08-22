@@ -159,11 +159,21 @@ export const getOrCreateRoom = async (documentId) => {
 export const addClientToRoom = async (documentId, client) => {
     const room = await getOrCreateRoom(documentId);
 
-    room.clients.add(client);
+    if (client.readyState === 1) {
+        room.clients.add(client);
 
-    console.log(
-        `[Collaboration] Client Joined ${documentId}. Clients: ${room.clients.size}`
-    );
+        console.log(
+            `[Collaboration] Client Joined ${documentId}. Clients: ${room.clients.size}`
+        );
+    } else {
+        console.log(
+            `[Collaboration] Client disconnected while room was initializing: ${documentId}`
+        );
+
+        if (room.clients.size === 0) {
+            removeRoom(documentId);
+        }
+    }
 
     return room;
 };

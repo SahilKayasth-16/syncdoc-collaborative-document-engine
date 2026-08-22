@@ -244,6 +244,10 @@ export const createWebSocketServer = (server) => {
                 ws
             );
 
+            if (ws.readyState !== 1) {
+                return;
+            }
+
             /**
              * Store document ID on WebSocket instance.
              *
