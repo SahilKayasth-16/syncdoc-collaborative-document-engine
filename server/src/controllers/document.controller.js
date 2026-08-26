@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import { createDocument, getAllDocuments, getDocumentById, 
          getDocumentTree, updateDocument, deleteDocument } from '../services/document.service.js';
+import { transformAST } from '../transformation/ast.transformer.js';
+import { renderIDRToPDF } from '../pdf/pdf.renderer.js';
 
 //CREATING NEW DOCUMENT WITH ITS ROOT BAST NODE
 export const createDocumentController = async(req, res, next) => {
@@ -177,3 +179,46 @@ export const deleteDocumentController = async (req, res, next) => {
         next(error);
     }
 };
+
+// EXPORT DOCUMENT TO PDF
+/**
+ * GET /api/documents/:id/export/pdf
+ * Generates and streams a PDF export for a given document.
+ */
+export const exportDocumentPDFController = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                status: 'Error',
+                message: 'Invalid document ID'
+            });
+        }
+
+        // 1. Fetch complete document AST tree from service
+        const documentTree = await getDocumentTree(id);
+
+        if (!documentTree) {
+            return res.status(404).json({
+                status: 'Error',
+                message: 'Document not found'
+            });
+        }
+
+        // 2. Transform AST tree into normalized Intermediate Document Representation (IDR)
+        const idrTree = transformAST(documentTree);
+
+        // 3. Render IDR tree into binary PDF Buffer
+        const pdfBuffer = await renderIDRToPDF(idrTree);
+
+        // 4. Return PDF response stream
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="SyncDoc-${id}.pdf"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+
+        return res.send(pdfBuffer);
+    } catch (error) {
+        next(error);
+    }
+};

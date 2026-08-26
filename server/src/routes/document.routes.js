@@ -1,6 +1,7 @@
 import express from "express";
 import { createDocumentController, getAllDocumentsController, getDocumentByIdController, 
-         getDocumentTreeController, updateDocumentController, deleteDocumentController } from "../controllers/document.controller.js";
+         getDocumentTreeController, updateDocumentController, deleteDocumentController,
+         exportDocumentPDFController } from "../controllers/document.controller.js";
 
 const router = express.Router();
 
@@ -11,6 +12,8 @@ router.get("/", getAllDocumentsController);
 router.get("/:id", getDocumentByIdController);
 
 router.get("/:id/tree", getDocumentTreeController);
+
+router.get("/:id/export/pdf", exportDocumentPDFController);
 
 router.put("/:id", updateDocumentController);
 

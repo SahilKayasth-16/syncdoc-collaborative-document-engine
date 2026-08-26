@@ -309,9 +309,50 @@ Intermediate Document Representation (IDR)
 | **`unsupported`** | `{ "rawData": { ... } }` | Fallback node wrapper for unrecognized block types. |
 
 ### Traversal, Validation & Immutability Rules
+PDF Renderer (`renderIDRToPDF`)
+  ├── `pdf.renderer.js`     (PDFKit document renderer & block handlers)
+  ├── `pdf.styles.js`       (Page geometry, colors & typography rules)
+  └── `pdf.utils.js`        (Buffer stream accumulator & page space helpers)
+       │
+       ▼
+Binary PDF Document Stream (`application/pdf`)
+```
 
-1. **Pure Operational Immutability**: Transformation returns brand-new JavaScript objects and never mutates the original input AST tree.
-2. **Sibling Order Preservation**: Sibling child nodes are ordered strictly according to their `position` property before output generation.
-3. **No Duplicate Node Generation**: Tracks visited node references during traversal to guarantee a 1-to-1 mapping from input nodes to transformed IDR nodes.
-4. **Unsupported Node Fallback**: Encounters of unknown node types produce a fallback node (`type: "unsupported"`, `originalType: "<raw_type>"`) with warning logs, ensuring transformation of valid document blocks continues uninterrupted.
-5. **Defensive Input Validation**: Rejects `null` / malformed root input with descriptive errors, while safely skipping invalid individual child items inside arrays.
+### Decoupling Guarantee
+
+- **Database Independence**: The PDF Renderer (`pdf.renderer.js`) does **NOT** import Mongoose models, does **NOT** execute database queries, and has zero knowledge of MongoDB schemas.
+- **Single Source of Truth**: Rendering relies exclusively on the normalized Intermediate Document Representation (IDR) produced by `transformAST`.
+
+### Supported PDF Renderers & Styling Specs
+
+| IDR Node Type | PDF Rendering Specification |
+| :--- | :--- |
+| **`document`** | Document title in 24pt bold with horizontal divider line. |
+| **`heading`** | Levels 1-3 rendered in 20pt, 16pt, and 14pt bold with proportional vertical margins. |
+| **`paragraph`** | 11pt regular text with 3pt line gap, automatic line wrapping, and multi-page flow. |
+| **`code_block`** | 10pt Courier monospace text inside a light slate box with background fill, border, and upper-right language tag. |
+| **`list`** | 11pt indented items with `•` bullet markers (unordered) or `1.` numeric prefixes (ordered). |
+| **`quote`** | 11pt italicized text with a left blue accent bar and bold author attribution (`— Author`). |
+| **`section`** | 14pt section heading followed by recursive rendering of subsection child blocks. |
+| **`unsupported`** | Subtle 9pt italicized notice (`[Unsupported content block: <type>]`) with warning logs. |
+
+### Page Break & Overflow Strategy
+
+- Page bounds are continuously checked prior to block rendering using `ensurePageSpace(doc, requiredHeight)`.
+- If an upcoming block exceeds remaining page height, a clean page break (`doc.addPage()`) is issued automatically.
+- Text content wraps naturally across page boundaries without clipping or text overlapping.
+
+### Export REST API Endpoint
+
+```http
+GET /api/documents/:documentId/export/pdf
+```
+
+- **Response Headers**:
+  - `Content-Type: application/pdf`
+  - `Content-Disposition: attachment; filename="SyncDoc-<documentId>.pdf"`
+- **Response Codes**:
+  - `200 OK`: Returns binary `%PDF-` payload.
+  - `400 Bad Request`: Returned when `:documentId` is not a valid MongoDB ObjectId.
+  - `404 Not Found`: Returned when `:documentId` does not exist in database.
+```
