@@ -239,3 +239,79 @@ By referencing nodes via independent, independent MongoDB documents rather than 
 1. **XML Tree Mapping**: The document structure maps 1-to-1 to a Yjs shared tree structure (`Y.XmlFragment` / `Y.XmlElement` / `Y.XmlText`).
 2. **Deterministic Integration**: When a client performs an operation (e.g., moving a section), the Yjs algorithm resolves the relative re-ordering. Once computed, the backend is notified to update the node's `parentId` and `position` fields directly.
 3. **No Overlapping Merges**: Two users typing in different paragraphs operate on separate text nodes, significantly reducing the conflict surface. When users concurrently edit the same text node, Yjs handles the character-level concurrent operations.
+
+---
+
+## 8. Backend Transformation Engine & Intermediate Document Representation (IDR)
+
+The Backend Transformation Engine (`server/src/transformation/`) decouples storage-level ASTs from document consumers (such as future PDF export modules). It converts raw or populated AST document trees into a clean, normalized **Intermediate Document Representation (IDR)**.
+
+### Pipeline Flow
+
+```text
+MongoDB Storage
+       │
+       ▼
+Document Service (`getDocumentTree`)
+       │
+       ▼
+Transformation Engine (`transformAST`)
+  ├── `ast.transformer.js`          (AST tree traversal & identity management)
+  ├── `node.transformers.js`        (Specialized node-type handlers)
+  └── `transformation.utils.js`     (Text extraction, metadata normalization & validation)
+       │
+       ▼
+Intermediate Document Representation (IDR)
+       │
+       ▼
+(Future PDF Exporter Layer)
+```
+
+### IDR Structure Standard
+
+#### Root Document
+```json
+{
+  "id": "doc-8f4b23c9-0a1e-4f76-9c4c-3e9a4f21780a",
+  "type": "document",
+  "title": "SyncDoc Technical Spec",
+  "metadata": {},
+  "children": [ ... ]
+}
+```
+
+#### Transformed Node Example (Heading)
+```json
+{
+  "id": "node-head-4444",
+  "type": "heading",
+  "position": 10000,
+  "content": {
+    "text": "Introduction",
+    "level": 1
+  },
+  "metadata": {},
+  "children": []
+}
+```
+
+### Supported Node Types & Content Schemas
+
+| Node Type | Transformed `content` Shape | Description |
+| :--- | :--- | :--- |
+| **`document`** | Container root node (`title` field at top level) | Root container for the entire document tree. |
+| **`heading`** | `{ "text": "...", "level": 1 }` | Headings level 1 through 6. |
+| **`paragraph`** | `{ "text": "..." }` | Standard block paragraph. |
+| **`code_block`** | `{ "text": "...", "language": "javascript" }` | Syntax-highlighted code snippet block. |
+| **`list`** | `{ "style": "unordered" \| "ordered", "items": [...] }` | Bulleted or numbered list block. |
+| **`quote`** | `{ "text": "...", "author": "..." }` | Blockquote with optional author citation. |
+| **`section`** | `{ "title": "..." }` | Grouping container for structural subsections. |
+| **`unsupported`** | `{ "rawData": { ... } }` | Fallback node wrapper for unrecognized block types. |
+
+### Traversal, Validation & Immutability Rules
+
+1. **Pure Operational Immutability**: Transformation returns brand-new JavaScript objects and never mutates the original input AST tree.
+2. **Sibling Order Preservation**: Sibling child nodes are ordered strictly according to their `position` property before output generation.
+3. **No Duplicate Node Generation**: Tracks visited node references during traversal to guarantee a 1-to-1 mapping from input nodes to transformed IDR nodes.
+4. **Unsupported Node Fallback**: Encounters of unknown node types produce a fallback node (`type: "unsupported"`, `originalType: "<raw_type>"`) with warning logs, ensuring transformation of valid document blocks continues uninterrupted.
+5. **Defensive Input Validation**: Rejects `null` / malformed root input with descriptive errors, while safely skipping invalid individual child items inside arrays.
