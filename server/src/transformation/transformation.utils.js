@@ -52,7 +52,7 @@ export function validateASTInput(input) {
 
 /**
  * Safely extracts text content from an AST node.
- * Supports direct data fields (data.content, data.text) and
+ * Supports direct data fields (data.content, data.text), numeric/primitive content, and
  * recursive inline text children (e.g. type: 'text' nodes).
  *
  * @param {object} node - AST node object.
@@ -63,12 +63,16 @@ export function extractTextContent(node) {
     return '';
   }
 
-  if (typeof node.data?.content === 'string') {
-    return node.data.content;
+  if (node.data?.content !== undefined && node.data?.content !== null) {
+    return typeof node.data.content === 'string'
+      ? node.data.content
+      : String(node.data.content);
   }
 
-  if (typeof node.data?.text === 'string') {
-    return node.data.text;
+  if (node.data?.text !== undefined && node.data?.text !== null) {
+    return typeof node.data.text === 'string'
+      ? node.data.text
+      : String(node.data.text);
   }
 
   // Fallback: If node has child text nodes (e.g. text leaf nodes in schema)
@@ -78,7 +82,7 @@ export function extractTextContent(node) {
       if (child && child.type === 'text') {
         const textVal = child.data?.content ?? child.data?.text ?? '';
         if (textVal) {
-          textPieces.push(textVal);
+          textPieces.push(String(textVal));
         }
       }
     }
@@ -88,6 +92,28 @@ export function extractTextContent(node) {
   }
 
   return '';
+}
+
+/**
+ * Counts total block nodes in an AST or IDR node tree recursively (excluding document root).
+ *
+ * @param {object} treeNode - Root document node or container node.
+ * @returns {number} Count of child/descendant block nodes.
+ */
+export function countASTNodes(treeNode) {
+  if (!treeNode || typeof treeNode !== 'object') {
+    return 0;
+  }
+
+  let count = treeNode.type === 'document' ? 0 : 1;
+
+  if (Array.isArray(treeNode.children)) {
+    for (const child of treeNode.children) {
+      count += countASTNodes(child);
+    }
+  }
+
+  return count;
 }
 
 /**

@@ -883,3 +883,78 @@ body {
   user-select: none;
 }
 
+/* Day 15 — Active Block & Local State UI */
+.editor-block.active-block {
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+  background: rgba(139, 92, 246, 0.02);
+}
+
+.status-metrics {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.status-label {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.status-value {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.status-none {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.status-divider {
+  color: rgba(255, 255, 255, 0.15);
+  margin: 0 0.25rem;
+}
+
+.status-collab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.collab-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.collab-connected {
+  color: var(--success);
+}
+.collab-connected .dot {
+  background-color: var(--success);
+}
+
+.collab-connecting {
+  color: var(--warning);
+}
+.collab-connecting .dot {
+  background-color: var(--warning);
+}
+
+.collab-disconnected,
+.collab-error {
+  color: var(--error);
+}
+.collab-disconnected .dot,
+.collab-error .dot {
+  background-color: var(--error);
+}
+
+

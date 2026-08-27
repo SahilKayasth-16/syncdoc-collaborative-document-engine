@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import EditorHeader from "./EditorHeader";
 import BlockList from "./BlockList";
 import EditorStatus from "./EditorStatus";
+import { EditorProvider } from "../../context/EditorContext";
 
 import { getDocumentTree } from "../../services/documentService";
 import { createCollaborationConnection } from "../../services/collaborationService";
@@ -298,32 +299,34 @@ const Editor = ({ documentId }) => {
     const nodes = document.root?.children || [];
 
     return (
-        <div
-            className="editor-container"
-            id="editor-container"
-        >
-            <div className="editor">
-                <EditorHeader
-                    title={document.title}
-                    activeUsers={activeUsers}
-                    currentUser={currentUser}
-                />
-
-                <main className="editor-canvas">
-                    <BlockList
-                        nodes={nodes}
-                        blockLocks={blockLocks}
+        <EditorProvider>
+            <div
+                className="editor-container"
+                id="editor-container"
+            >
+                <div className="editor">
+                    <EditorHeader
+                        title={document.title}
+                        activeUsers={activeUsers}
                         currentUser={currentUser}
-                        onAcquireLock={handleAcquireLock}
-                        onReleaseLock={handleReleaseLock}
                     />
-                </main>
 
-                <EditorStatus
-                    collaborationStatus={collaborationStatus}
-                />
+                    <main className="editor-canvas">
+                        <BlockList
+                            nodes={nodes}
+                            blockLocks={blockLocks}
+                            currentUser={currentUser}
+                            onAcquireLock={handleAcquireLock}
+                            onReleaseLock={handleReleaseLock}
+                        />
+                    </main>
+
+                    <EditorStatus
+                        collaborationStatus={collaborationStatus}
+                    />
+                </div>
             </div>
-        </div>
+        </EditorProvider>
     );
 };
 
