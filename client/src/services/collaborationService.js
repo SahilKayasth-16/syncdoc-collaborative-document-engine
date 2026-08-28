@@ -155,6 +155,53 @@ export const createCollaborationConnection = (
         },
 
         /**
+         * Targeted update of block data inside the collaborative Yjs document.
+         */
+        updateBlockData(blockId, patch) {
+            if (!blockId || !patch) return;
+
+            try {
+                const documentMap = ydoc.getMap("document");
+                const blocksArray = documentMap.get("blocks") || ydoc.getArray("blocks");
+                if (!blocksArray) return;
+
+                ydoc.transact(() => {
+                    const arr = blocksArray.toArray();
+                    for (let i = 0; i < arr.length; i++) {
+                        const block = arr[i];
+                        const bId = typeof block?.get === "function"
+                            ? block.get("id")
+                            : (block?.id || block?._id);
+
+                        if (bId && bId.toString() === blockId.toString()) {
+                            if (typeof block?.set === "function") {
+                                const oldData = block.get("data") || {};
+                                block.set("data", {
+                                    ...oldData,
+                                    ...(patch.data || {})
+                                });
+                            } else {
+                                const updatedBlock = {
+                                    ...block,
+                                    ...patch,
+                                    data: {
+                                        ...(block?.data || {}),
+                                        ...(patch.data || {})
+                                    }
+                                };
+                                blocksArray.delete(i, 1);
+                                blocksArray.insert(i, [updatedBlock]);
+                            }
+                            break;
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("[Collaboration] Error updating Yjs block data:", err);
+            }
+        },
+
+        /**
          * Close WebSocket and destroy local Y.Doc.
          */
         disconnect() {

@@ -355,4 +355,36 @@ GET /api/documents/:documentId/export/pdf
   - `200 OK`: Returns binary `%PDF-` payload.
   - `400 Bad Request`: Returned when `:documentId` is not a valid MongoDB ObjectId.
   - `404 Not Found`: Returned when `:documentId` does not exist in database.
+
+---
+
+## 10. Frontend Block Management & Targeted AST Updates Architecture
+
+Day 16 introduces targeted block state tracking and rendering optimization for the SyncDoc editor frontend, ensuring smooth editing performance without full document re-renders.
+
+### State Separation Model
+
+```text
+Persistent Document State (Editor.jsx & Yjs)
+  └── document (AST tree root & children array)
+  └── Y.Doc collaborative document
+
+Transient Editor State (EditorContext.jsx)
+  └── activeBlockId ("block-123")
+  └── cursor ({ blockId, offset })
+  └── selection ({ start: { blockId, offset }, end: { blockId, offset } })
+
+Collaboration State (collaborationService.js)
+  └── activeUsers (Presence array)
+  └── blockLocks (Localized block lock array)
+```
+
+### Key Mechanisms
+
+1. **Active Block Tracking (`activeBlockId`)**: Focus / click events set `activeBlockId` in `EditorContext`. Only the active block receives the `.active-block` styling.
+2. **Cursor & Selection Offset Tracking**: Character offsets are accurately calculated from the DOM using `window.getSelection()` and DOM `Range` offsets inside the active block container. Transient selection changes never mutate persistent AST state.
+3. **Targeted AST Node Updates (`updateASTNode(blockId, patch)`)**: Modifying block content updates only the target block node in state while retaining exact object references for all unchanged sibling nodes. Local edits propagate to the Yjs `Y.Doc` via `collaborationService.updateBlockData`.
+4. **Targeted Re-Rendering**: `<Block>` components are wrapped in `React.memo` with custom prop comparison (`arePropsEqual`). Moving the cursor or editing a single block re-renders ONLY affected blocks, leaving all unrelated sibling blocks unrendered.
+5. **Day 11 Block Locking Integration**: Blocks locked by another user (`isLockedByOther === true`) display a lock banner ("Currently edited by User X") and disable editable interaction, while leaving all unlocked blocks in the document fully editable.
+
 ```

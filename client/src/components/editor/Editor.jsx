@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 
 import EditorHeader from "./EditorHeader";
@@ -191,6 +191,50 @@ const Editor = ({ documentId }) => {
         }
     };
 
+    /**
+     * Targeted update of a specific AST node in state.
+     * Keeps unchanged sibling nodes' references intact to prevent unnecessary re-renders.
+     */
+    const updateASTNode = useCallback((blockId, patch) => {
+        if (!blockId || !patch) return;
+        const normalizedId = blockId.toString();
+
+        setDocument((prevDoc) => {
+            if (!prevDoc || !prevDoc.root || !prevDoc.root.children) return prevDoc;
+
+            let hasChanged = false;
+            const updatedChildren = prevDoc.root.children.map((child) => {
+                const childId = (child.id || child._id)?.toString();
+                if (childId === normalizedId) {
+                    hasChanged = true;
+                    return {
+                        ...child,
+                        ...patch,
+                        data: {
+                            ...(child.data || {}),
+                            ...(patch.data || {})
+                        }
+                    };
+                }
+                return child;
+            });
+
+            if (!hasChanged) return prevDoc;
+
+            return {
+                ...prevDoc,
+                root: {
+                    ...prevDoc.root,
+                    children: updatedChildren
+                }
+            };
+        });
+
+        if (collaborationInstance && collaborationInstance.updateBlockData) {
+            collaborationInstance.updateBlockData(normalizedId, patch);
+        }
+    }, [collaborationInstance]);
+
     if (loading) {
         return (
             <div
@@ -299,7 +343,7 @@ const Editor = ({ documentId }) => {
     const nodes = document.root?.children || [];
 
     return (
-        <EditorProvider>
+        <EditorProvider updateASTNode={updateASTNode}>
             <div
                 className="editor-container"
                 id="editor-container"

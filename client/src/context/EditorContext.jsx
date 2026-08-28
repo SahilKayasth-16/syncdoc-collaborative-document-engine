@@ -8,7 +8,7 @@ import { createContext, useContext, useState, useCallback } from "react";
  */
 const EditorContext = createContext(null);
 
-export const EditorProvider = ({ children }) => {
+export const EditorProvider = ({ children, updateASTNode }) => {
     const [activeBlockId, setActiveBlockId] = useState(null);
 
     const [cursor, setCursorState] = useState({
@@ -77,7 +77,8 @@ export const EditorProvider = ({ children }) => {
         setActiveBlock,
         setCursor,
         setSelection,
-        clearSelection
+        clearSelection,
+        updateASTNode
     };
 
     return (

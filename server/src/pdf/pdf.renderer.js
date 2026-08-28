@@ -248,13 +248,10 @@ function renderCodeBlock(node, doc) {
   ensurePageSpace(doc, Math.min(boxHeight + 10, 100));
 
   const startY = doc.y;
-  const pageBottom = doc.page.height - doc.page.margins.bottom;
-  const availableOnPage = Math.max(pageBottom - startY, 20);
-  const renderRectHeight = Math.min(boxHeight, availableOnPage);
 
   // Render background box and border
   doc
-    .rect(marginX, startY, contentWidth, renderRectHeight)
+    .rect(marginX, startY, contentWidth, boxHeight)
     .fillAndStroke(style.backgroundColor, style.borderColor);
 
   // Render language tag if present
