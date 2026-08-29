@@ -28,9 +28,7 @@ const QuoteBlock = ({ node, isLockedByOther, updateASTNode }) => {
                 contentEditable={!isLockedByOther}
                 suppressContentEditableWarning={true}
                 onInput={handleInput}
-            >
-                {content}
-            </p>
+            />
             {author && <cite className="quote-author">— {author}</cite>}
         </blockquote>
     );

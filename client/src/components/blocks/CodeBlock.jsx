@@ -29,9 +29,7 @@ const CodeBlock = ({ node, isLockedByOther, updateASTNode }) => {
                 suppressContentEditableWarning={true}
                 onInput={handleInput}
                 data-language={language}
-            >
-                {content}
-            </code>
+            />
         </pre>
     );
 };

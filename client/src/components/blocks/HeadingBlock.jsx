@@ -30,9 +30,7 @@ const HeadingBlock = ({ node, isLockedByOther, updateASTNode }) => {
             suppressContentEditableWarning={true}
             onInput={handleInput}
             className="heading-block"
-        >
-            {content}
-        </HeadingTag>
+        />
     );
 };
 

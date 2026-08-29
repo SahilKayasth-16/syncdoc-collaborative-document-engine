@@ -49,9 +49,7 @@ const ListItem = ({ index, item, isLockedByOther, onInput }) => {
             contentEditable={!isLockedByOther}
             suppressContentEditableWarning={true}
             onInput={(e) => onInput(index, e.currentTarget.innerText || "")}
-        >
-            {item}
-        </li>
+        />
     );
 };
 

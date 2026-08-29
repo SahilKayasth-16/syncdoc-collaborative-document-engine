@@ -92,26 +92,86 @@ const Editor = ({ documentId }) => {
                                 return;
                             }
 
-                            console.log(
-                                "[Editor] Received Yjs document update:",
-                                ydoc
-                            );
+                            try {
+                                const documentMap = ydoc.getMap("document");
+                                const blocksArray = documentMap.get("blocks") || ydoc.getArray("blocks");
+                                if (!blocksArray) return;
 
-                            const documentMap = ydoc.getMap("document");
+                                const rawYBlocks = typeof blocksArray.toArray === "function"
+                                    ? blocksArray.toArray()
+                                    : Array.from(blocksArray);
 
-                            const title = documentMap.get("title");
+                                const yNodesMap = new Map();
+                                rawYBlocks.forEach((yBlock) => {
+                                    let id, type, position, data;
+                                    if (typeof yBlock?.get === "function") {
+                                        id = yBlock.get("id");
+                                        type = yBlock.get("type");
+                                        position = yBlock.get("position");
+                                        data = yBlock.get("data");
+                                    } else {
+                                        id = yBlock?.id || yBlock?._id;
+                                        type = yBlock?.type;
+                                        position = yBlock?.position;
+                                        data = yBlock?.data;
+                                    }
 
-                            const blocks = documentMap.get("blocks");
-                            
-                            console.log(
-                                "[Editor] Collaborative title:",
-                                title
-                            );
+                                    if (data && typeof data.toJSON === "function") {
+                                        data = data.toJSON();
+                                    }
 
-                            console.log(
-                                "[Editor] Collaborative blocks:",
-                                blocks.toArray()
-                            );
+                                    if (id) {
+                                        yNodesMap.set(id.toString(), {
+                                            id: id.toString(),
+                                            type: type || "paragraph",
+                                            position: Number.isFinite(Number(position)) ? Number(position) : 0,
+                                            data: data && typeof data === "object" ? data : {}
+                                        });
+                                    }
+                                });
+
+                                setDocument((prevDoc) => {
+                                    if (!prevDoc || !prevDoc.root || !prevDoc.root.children) return prevDoc;
+
+                                    let hasChanged = false;
+                                    const updatedChildren = prevDoc.root.children.map((child) => {
+                                        const childId = (child.id || child._id)?.toString();
+                                        const yNode = yNodesMap.get(childId);
+
+                                        if (yNode) {
+                                            const dataChanged = JSON.stringify(child.data) !== JSON.stringify(yNode.data);
+                                            const typeChanged = child.type !== yNode.type;
+                                            const posChanged = child.position !== yNode.position;
+
+                                            if (dataChanged || typeChanged || posChanged) {
+                                                hasChanged = true;
+                                                return {
+                                                    ...child,
+                                                    type: yNode.type,
+                                                    position: yNode.position,
+                                                    data: {
+                                                        ...(child.data || {}),
+                                                        ...(yNode.data || {})
+                                                    }
+                                                };
+                                            }
+                                        }
+                                        return child;
+                                    });
+
+                                    if (!hasChanged) return prevDoc;
+
+                                    return {
+                                        ...prevDoc,
+                                        root: {
+                                            ...prevDoc.root,
+                                            children: updatedChildren
+                                        }
+                                    };
+                                });
+                            } catch (err) {
+                                console.error("[Editor] Error handling remote Yjs update:", err);
+                            }
                         },
 
                         onError: (err) => {

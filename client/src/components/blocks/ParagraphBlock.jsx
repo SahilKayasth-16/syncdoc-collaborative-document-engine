@@ -27,9 +27,7 @@ const ParagraphBlock = ({ node, isLockedByOther, updateASTNode }) => {
             suppressContentEditableWarning={true}
             onInput={handleInput}
             className="paragraph-block"
-        >
-            {content}
-        </p>
+        />
     );
 };
 
