@@ -237,3 +237,11 @@ export const sanitizeAST = (documentTree) => {
 export const isSupportedNodeType = (type) => {
     return SUPPORTED_NODE_TYPES.includes(type);
 };
+
+/**
+ * Centralized Day 19 Sanitizer Function Aliases
+ */
+export const sanitizeText = sanitizePlainText;
+export const sanitizeRichText = sanitizePlainText;
+export const sanitizeNode = sanitizeASTNode;
+export const sanitizeDocument = sanitizeAST;
