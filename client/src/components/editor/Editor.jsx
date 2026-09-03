@@ -5,6 +5,7 @@ import EditorHeader from "./EditorHeader";
 import BlockList from "./BlockList";
 import EditorStatus from "./EditorStatus";
 import { EditorProvider } from "../../context/EditorContext";
+import { sanitizeNodeData } from "../../utils/sanitizer";
 
 import { getDocumentTree } from "../../services/documentService";
 import { createCollaborationConnection } from "../../services/collaborationService";
@@ -139,7 +140,8 @@ const Editor = ({ documentId }) => {
                                         const yNode = yNodesMap.get(childId);
 
                                         if (yNode) {
-                                            const dataChanged = JSON.stringify(child.data) !== JSON.stringify(yNode.data);
+                                            const sanitizedData = yNode.data ? sanitizeNodeData(yNode.type, yNode.data) : yNode.data;
+                                            const dataChanged = JSON.stringify(child.data) !== JSON.stringify(sanitizedData);
                                             const typeChanged = child.type !== yNode.type;
                                             const posChanged = child.position !== yNode.position;
 
@@ -151,7 +153,7 @@ const Editor = ({ documentId }) => {
                                                     position: yNode.position,
                                                     data: {
                                                         ...(child.data || {}),
-                                                        ...(yNode.data || {})
+                                                        ...(sanitizedData || {})
                                                     }
                                                 };
                                             }
@@ -262,6 +264,15 @@ const Editor = ({ documentId }) => {
         setDocument((prevDoc) => {
             if (!prevDoc || !prevDoc.root || !prevDoc.root.children) return prevDoc;
 
+            let targetType = "paragraph";
+            const targetChild = prevDoc.root.children.find(c => (c.id || c._id)?.toString() === normalizedId);
+            if (targetChild) {
+                targetType = targetChild.type;
+            }
+
+            const sanitizedData = patch.data ? sanitizeNodeData(targetType, patch.data) : patch.data;
+            const sanitizedPatch = { ...patch, data: sanitizedData };
+
             let hasChanged = false;
             const updatedChildren = prevDoc.root.children.map((child) => {
                 const childId = (child.id || child._id)?.toString();
@@ -269,10 +280,10 @@ const Editor = ({ documentId }) => {
                     hasChanged = true;
                     return {
                         ...child,
-                        ...patch,
+                        ...sanitizedPatch,
                         data: {
                             ...(child.data || {}),
-                            ...(patch.data || {})
+                            ...(sanitizedPatch.data || {})
                         }
                     };
                 }
@@ -280,6 +291,10 @@ const Editor = ({ documentId }) => {
             });
 
             if (!hasChanged) return prevDoc;
+
+            if (collaborationInstance && collaborationInstance.updateBlockData) {
+                collaborationInstance.updateBlockData(normalizedId, sanitizedPatch);
+            }
 
             return {
                 ...prevDoc,
@@ -289,10 +304,6 @@ const Editor = ({ documentId }) => {
                 }
             };
         });
-
-        if (collaborationInstance && collaborationInstance.updateBlockData) {
-            collaborationInstance.updateBlockData(normalizedId, patch);
-        }
     }, [collaborationInstance]);
 
     if (loading) {
@@ -410,6 +421,7 @@ const Editor = ({ documentId }) => {
             >
                 <div className="editor">
                     <EditorHeader
+                        documentId={documentId}
                         title={document.title}
                         activeUsers={activeUsers}
                         currentUser={currentUser}

@@ -131,7 +131,7 @@ async function runWeek3ComprehensiveSuite() {
     await Document.deleteMany({});
     await ASTNode.deleteMany({});
 
-    const doc = await createDocument('Week 3 Demo Document');
+    const doc = await createDocument('Week 3 Demo Document', false);
     const docId = doc._id.toString();
     const rootNodeId = doc.rootNodeId.toString();
 

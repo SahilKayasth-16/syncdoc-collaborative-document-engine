@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { sanitizePlainText } from "../../utils/sanitizer";
 
 const CodeBlock = ({ node, isLockedByOther, updateASTNode }) => {
     const language = node?.data?.language || "text";
@@ -12,12 +13,21 @@ const CodeBlock = ({ node, isLockedByOther, updateASTNode }) => {
     }, [content]);
 
     const handleInput = (e) => {
-        const newText = e.currentTarget.innerText || "";
+        const rawText = e.currentTarget.innerText || "";
+        const sanitizedText = sanitizePlainText(rawText);
         const blockId = (node?.id || node?._id)?.toString();
         if (blockId && updateASTNode) {
             updateASTNode(blockId, {
-                data: { language, content: newText }
+                data: { language, content: sanitizedText }
             });
+        }
+    };
+
+    const handleBlur = (e) => {
+        const rawText = e.currentTarget.innerText || "";
+        const sanitizedText = sanitizePlainText(rawText);
+        if (codeRef.current) {
+            codeRef.current.innerText = sanitizedText || content;
         }
     };
 
@@ -28,6 +38,7 @@ const CodeBlock = ({ node, isLockedByOther, updateASTNode }) => {
                 contentEditable={!isLockedByOther}
                 suppressContentEditableWarning={true}
                 onInput={handleInput}
+                onBlur={handleBlur}
                 data-language={language}
             />
         </pre>

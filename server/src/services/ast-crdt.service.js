@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { sanitizeAST, sanitizeASTNode } from "../security/sanitizer.js";
 
 /**
  * Convert an AST Node into collaborative yjs block.
@@ -22,15 +23,18 @@ import * as Y from "yjs";
  */
 
 export const astnodeToYblock = (node) => {
-    if (!node || !node.id) {
+    if (!node || (!node.id && !node._id)) {
         throw new Error("Invalid AST Node.");
     }
 
+    const sanitized = sanitizeASTNode(node) || node;
+    const nodeId = sanitized.id || sanitized._id;
+
     const block = new Y.Map();
 
-    block.set("id", node.id.toString());
-    block.set("type", node.type);
-    block.set("data", node.data || {});
+    block.set("id", nodeId.toString());
+    block.set("type", sanitized.type);
+    block.set("data", sanitized.data || {});
 
     return block;
 };
@@ -43,18 +47,20 @@ export const astnodeToYblock = (node) => {
  *                      |__title
  *                      |__blocks
  * 
- * @param {object} documentTree
+ * @param {object} rawDocumentTree
  * @param {Y.Doc} ydoc
  */
 
-export const loadASTIntoYDocument = (documentTree, ydoc) => {
-    if (!documentTree) {
+export const loadASTIntoYDocument = (rawDocumentTree, ydoc) => {
+    if (!rawDocumentTree) {
         throw new Error("Document tree is required.");
     }
 
     if (!ydoc) {
         throw new Error("Y.Doc is required.");
     }
+
+    const documentTree = sanitizeAST(rawDocumentTree) || rawDocumentTree;
 
     const documentMap = ydoc.getMap("document");
     const blocks = ydoc.getArray("blocks");
@@ -107,9 +113,26 @@ export const getYDocumentBlocks = (ydoc) => {
         throw new Error("Y.Doc is required.");
     }
 
-    const blocks = ydoc.getArray("blocks");
+    const documentMap = ydoc.getMap("document");
+    const blocks = documentMap.get("blocks") || ydoc.getArray("blocks");
+    if (!blocks) return [];
 
-    return blocks.toArray().map((block) => {
-        return yBlockToJSON(block);
+    const arr = typeof blocks.toArray === "function" ? blocks.toArray() : Array.from(blocks);
+
+    return arr.map((block) => {
+        if (typeof block?.get === "function") {
+            return {
+                id: block.get("id"),
+                type: block.get("type"),
+                position: block.get("position"),
+                data: block.get("data")
+            };
+        }
+        return {
+            id: block?.id || block?._id,
+            type: block?.type,
+            position: block?.position,
+            data: block?.data
+        };
     });
 };

@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dompurify": "^3.4.14",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "jsdom": "^29.1.1",
     "mongoose": "^8.4.1",
     "pdfkit": "^0.20.1",
     "ws": "^8.21.3",

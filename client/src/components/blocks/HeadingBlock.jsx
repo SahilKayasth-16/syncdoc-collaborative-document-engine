@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { sanitizePlainText } from "../../utils/sanitizer";
 
 const HeadingBlock = ({ node, isLockedByOther, updateASTNode }) => {
     const level = node?.data?.level || 1;
@@ -14,12 +15,21 @@ const HeadingBlock = ({ node, isLockedByOther, updateASTNode }) => {
     }, [content]);
 
     const handleInput = (e) => {
-        const newText = e.currentTarget.innerText || "";
+        const rawText = e.currentTarget.innerText || "";
+        const sanitizedText = sanitizePlainText(rawText);
         const blockId = (node?.id || node?._id)?.toString();
         if (blockId && updateASTNode) {
             updateASTNode(blockId, {
-                data: { level, content: newText }
+                data: { level, content: sanitizedText }
             });
+        }
+    };
+
+    const handleBlur = (e) => {
+        const rawText = e.currentTarget.innerText || "";
+        const sanitizedText = sanitizePlainText(rawText);
+        if (headingRef.current) {
+            headingRef.current.innerText = sanitizedText || content;
         }
     };
 
@@ -29,6 +39,7 @@ const HeadingBlock = ({ node, isLockedByOther, updateASTNode }) => {
             contentEditable={!isLockedByOther}
             suppressContentEditableWarning={true}
             onInput={handleInput}
+            onBlur={handleBlur}
             className="heading-block"
         />
     );

@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 import Document from "../models/Document.js";
 import ASTNode from "../models/ASTNode.js";
+import { sanitizePlainText } from "../security/sanitizer.js";
+import { getRoom } from "../websocket/collaboration.room.js";
+import { getYDocumentBlocks } from "./ast-crdt.service.js";
 
 /**
  * Creating a new document with is new AST Node
@@ -9,7 +12,8 @@ import ASTNode from "../models/ASTNode.js";
  * so creation requires a controlled bootstrap sequence
  */
 
-export const createDocument = async (title) => {
+export const createDocument = async (title, bootstrapChildren = true) => {
+    const sanitizedTitle = sanitizePlainText(title);
     const documentId = new mongoose.Types.ObjectId();
     const rootNodeId = new mongoose.Types.ObjectId();
 
@@ -21,14 +25,14 @@ export const createDocument = async (title) => {
          */
         const document = new Document({
             _id: documentId,
-            title,
+            title: sanitizedTitle,
             rootNodeId
         });
 
         document.bypassTreeValidation = true;
         await document.save();
 
-        //2. Create root AST Node
+        // 2. Create root AST Node
         const rootNode = new ASTNode({
             _id: rootNodeId,
             documentId: documentId,
@@ -41,8 +45,31 @@ export const createDocument = async (title) => {
         rootNode.bypassTreeValidation = true;
         await rootNode.save();
 
+        // 3. Bootstrap default editable child AST nodes under root if requested
+        if (bootstrapChildren) {
+            const defaultHeading = new ASTNode({
+                documentId: documentId,
+                parentId: rootNodeId,
+                type: 'heading',
+                position: 10000,
+                data: { level: 1, content: sanitizedTitle || "Untitled Document" }
+            });
+            defaultHeading.bypassTreeValidation = true;
+            await defaultHeading.save();
+
+            const defaultParagraph = new ASTNode({
+                documentId: documentId,
+                parentId: rootNodeId,
+                type: 'paragraph',
+                position: 20000,
+                data: { content: "Start typing your collaborative content here..." }
+            });
+            defaultParagraph.bypassTreeValidation = true;
+            await defaultParagraph.save();
+        }
+
         /**
-         * 3. Both Document and root node now exist.
+         * 4. Both Document and root node now exist with valid children.
          * Run the normal recursive validation.
          */
         document.bypassTreeValidation = false;
@@ -50,7 +77,7 @@ export const createDocument = async (title) => {
 
         return document;
     } catch (error) {
-        await ASTNode.deleteOne({ _id: rootNodeId });
+        await ASTNode.deleteMany({ documentId });
         await Document.deleteOne({ _id: documentId });
 
         throw error;
@@ -103,6 +130,33 @@ export const getDocumentTree = async (documentId) => {
         });
     }
 
+    // Check if an active live Yjs collaboration room exists for this document
+    const activeRoom = getRoom(documentId.toString());
+    if (activeRoom && activeRoom.ydoc) {
+        try {
+            const documentMap = activeRoom.ydoc.getMap("document");
+            const liveTitle = documentMap.get("title");
+            if (liveTitle) {
+                document.title = liveTitle;
+            }
+
+            const liveBlocks = getYDocumentBlocks(activeRoom.ydoc);
+            liveBlocks.forEach((liveBlock) => {
+                const bId = liveBlock.id?.toString();
+                if (bId && nodeMap.has(bId)) {
+                    const node = nodeMap.get(bId);
+                    if (liveBlock.data && typeof liveBlock.data === "object") {
+                        node.data = { ...node.data, ...liveBlock.data };
+                        // Persist live updated data to MongoDB asynchronously
+                        ASTNode.updateOne({ _id: node.id }, { $set: { data: node.data } }).catch(() => {});
+                    }
+                }
+            });
+        } catch (err) {
+            console.warn(`[DocumentService] Could not overlay live Yjs blocks for doc ${documentId}:`, err.message);
+        }
+    }
+
     // Attach each node to its parent.
     for (const node of nodes) {
         if (node.parentId) {
@@ -147,11 +201,12 @@ export const getDocumentTree = async (documentId) => {
  * AST structure is intentionally excluded from this operation.
  */
 export const updateDocument = async (documentId, title) => {
+    const sanitizedTitle = sanitizePlainText(title);
     return await Document.findByIdAndUpdate(
         documentId,
         {
             $set: {
-                title
+                title: sanitizedTitle
             }
         },
         {

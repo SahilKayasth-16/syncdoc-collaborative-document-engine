@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DocumentList from '../components/documents/DocumentList';
-import { getDocuments } from '../services/documentService';
+import { getDocuments, createDocument } from '../services/documentService';
 
 const DocumentsPage = () => {
   const [documents, setDocuments] = useState([]);
@@ -20,6 +20,17 @@ const DocumentsPage = () => {
       setApiStatus('disconnected');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateDocument = async () => {
+    const title = window.prompt("Enter new document title (Test XSS payload like <script>alert(1)</script>Title):");
+    if (!title || !title.trim()) return;
+    try {
+      await createDocument(title.trim());
+      fetchDocumentList();
+    } catch (err) {
+      alert("Failed to create document: " + err.message);
     }
   };
 
@@ -83,7 +94,31 @@ const DocumentsPage = () => {
             <p className="header-subtitle">Manage and edit your collaborative markdown documents</p>
           </div>
           
-          <div className="header-actions">
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={handleCreateDocument}
+              className="btn btn-primary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.45rem 0.9rem',
+                fontSize: '0.85rem',
+                fontWeight: '600',
+                backgroundColor: '#4f46e5',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              + New Document
+            </button>
+
             {/* API Connection Indicator */}
             <div className={`api-badge ${apiStatus}`} id="api-connectivity-badge">
               <span className="dot"></span>

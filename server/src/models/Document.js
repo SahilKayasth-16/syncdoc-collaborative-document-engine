@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { validateDocumentTree } from '../validators/ast.validator.js';
+import { sanitizePlainText } from '../security/sanitizer.js';
 
 const DocumentSchema = new mongoose.Schema({
   title: {
@@ -22,8 +23,12 @@ const DocumentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Document pre-save tree validation
+// Document pre-save tree validation & title sanitization
 DocumentSchema.pre('save', async function(next) {
+  if (this.title) {
+    this.title = sanitizePlainText(this.title);
+  }
+
   if (this.bypassTreeValidation) {
     return next();
   }

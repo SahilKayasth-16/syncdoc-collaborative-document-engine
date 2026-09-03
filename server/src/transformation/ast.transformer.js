@@ -17,6 +17,8 @@ import {
   transformUnsupportedNode
 } from './node.transformers.js';
 
+import { sanitizeAST } from '../security/sanitizer.js';
+
 /**
  * Recursively transforms an individual AST node and its child hierarchy.
  *
@@ -85,8 +87,11 @@ function transformChildNodes(children, context) {
  * @throws {Error} If root input is null or malformed.
  * @returns {object} The normalized Intermediate Document Representation (IDR) tree.
  */
-export function transformAST(astInput, options = {}) {
-  // 1. Validate root input and extract identity
+export function transformAST(rawAstInput, options = {}) {
+  // 1. Sanitize input tree to guarantee plain-text security
+  const astInput = sanitizeAST(rawAstInput) || rawAstInput;
+
+  // 2. Validate root input and extract identity
   const { rootNode, documentTitle, documentId } = validateASTInput(astInput);
 
   // 2. Initialize transformation context

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { validateDocumentTree } from '../validators/ast.validator.js';
+import { sanitizeASTNode } from '../security/sanitizer.js';
 
 const ASTNodeSchema = new mongoose.Schema({
   documentId: {
@@ -60,8 +61,19 @@ ASTNodeSchema.index({ documentId: 1 });
 ASTNodeSchema.index({ parentId: 1 });
 ASTNodeSchema.index({ documentId: 1, parentId: 1, position: 1 });
 
-// Pre-save hook for deep recursive validation
+// Pre-save hook for deep recursive validation & data sanitization
 ASTNodeSchema.pre('save', async function(next) {
+  if (this.data && typeof this.data === 'object') {
+    const sanitized = sanitizeASTNode({
+      type: this.type,
+      data: this.data,
+      children: []
+    });
+    if (sanitized && sanitized.data) {
+      this.data = sanitized.data;
+    }
+  }
+
   // Allow bypassing tree validation (useful during initial root creation or seeding)
   if (this.bypassTreeValidation) {
     return next();

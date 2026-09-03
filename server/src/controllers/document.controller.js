@@ -3,6 +3,7 @@ import { createDocument, getAllDocuments, getDocumentById,
          getDocumentTree, updateDocument, deleteDocument } from '../services/document.service.js';
 import { transformAST } from '../transformation/ast.transformer.js';
 import { renderIDRToPDF } from '../pdf/pdf.renderer.js';
+import { sanitizePlainText } from '../security/sanitizer.js';
 
 //CREATING NEW DOCUMENT WITH ITS ROOT BAST NODE
 export const createDocumentController = async(req, res, next) => {
@@ -16,7 +17,8 @@ export const createDocumentController = async(req, res, next) => {
             });
         }
 
-        const document = await createDocument(title.trim());
+        const sanitizedTitle = sanitizePlainText(title.trim());
+        const document = await createDocument(sanitizedTitle);
 
         return res.status(201).json({
             status: 'OK',
@@ -128,9 +130,11 @@ export const updateDocumentController = async (req, res, next) => {
             });
         }
 
+        const sanitizedTitle = sanitizePlainText(title.trim());
+
         const document = await updateDocument(
             id,
-            title.trim()
+            sanitizedTitle
         );
 
         if (!document) {

@@ -1,4 +1,5 @@
 import * as Y from "yjs";
+import { sanitizeAST } from "../security/sanitizer.js";
 
 /**
  * Create a new Yjs document for a collaboration room.
@@ -96,17 +97,19 @@ export const getDocumentTitle = (ydoc) => {
  * The root AST node itself is not stored as a block.
  * Its children become the collaborative blocks.
  *
- * @param {object} documentTree
+ * @param {object} rawDocumentTree
  * @param {Y.Doc} ydoc
  */
-export const loadASTIntoYDocument = (documentTree, ydoc) => {
-    if (!documentTree) {
+export const loadASTIntoYDocument = (rawDocumentTree, ydoc) => {
+    if (!rawDocumentTree) {
         throw new Error("Document tree is required.");
     }
 
     if (!ydoc) {
         throw new Error("Y.Doc is required.");
     }
+
+    const documentTree = sanitizeAST(rawDocumentTree) || rawDocumentTree;
 
     if (!documentTree.root) {
         throw new Error("Document tree root is required.");
