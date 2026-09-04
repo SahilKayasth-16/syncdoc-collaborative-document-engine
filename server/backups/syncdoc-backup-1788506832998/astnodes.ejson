@@ -1,0 +1,143 @@
+[
+  {
+    "_id": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "documentId": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "parentId": null,
+    "type": "document",
+    "position": 0,
+    "createdAt": {
+      "$date": "2026-09-04T06:38:42.889Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:42.889Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6a9a6772bb3339c024a25205"
+    },
+    "documentId": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "parentId": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "type": "heading",
+    "position": 10000,
+    "data": {
+      "level": 1,
+      "content": "SyncDoc Architecture Overview"
+    },
+    "createdAt": {
+      "$date": "2026-09-04T06:38:42.961Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:42.961Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6a9a6772bb3339c024a2520a"
+    },
+    "documentId": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "parentId": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "type": "paragraph",
+    "position": 20000,
+    "data": {
+      "content": "SyncDoc is a real-time collaborative document engine built on an AST tree foundation."
+    },
+    "createdAt": {
+      "$date": "2026-09-04T06:38:42.982Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:42.982Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6a9a6772bb3339c024a2520f"
+    },
+    "documentId": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "parentId": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "type": "code_block",
+    "position": 30000,
+    "data": {
+      "language": "javascript",
+      "content": "const sync = new SyncDoc();\nsync.init();"
+    },
+    "createdAt": {
+      "$date": "2026-09-04T06:38:42.998Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:42.998Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6a9a6773bb3339c024a25214"
+    },
+    "documentId": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "parentId": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "type": "list",
+    "position": 40000,
+    "data": {
+      "style": "unordered",
+      "items": [
+        "AST Tree Representation",
+        "Intermediate Representation",
+        "PDF Exporter Engine"
+      ]
+    },
+    "createdAt": {
+      "$date": "2026-09-04T06:38:43.005Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:43.005Z"
+    },
+    "__v": 0
+  },
+  {
+    "_id": {
+      "$oid": "6a9a6773bb3339c024a25219"
+    },
+    "documentId": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "parentId": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "type": "quote",
+    "position": 50000,
+    "data": {
+      "content": "Decoupling storage AST from presentation representation guarantees clean exports.",
+      "author": "SyncDoc Architect"
+    },
+    "createdAt": {
+      "$date": "2026-09-04T06:38:43.013Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:43.013Z"
+    },
+    "__v": 0
+  }
+]

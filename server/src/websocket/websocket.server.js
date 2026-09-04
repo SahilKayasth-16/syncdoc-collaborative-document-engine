@@ -8,8 +8,7 @@ import {
     addUserPresence,
     acquireBlockLock,
     releaseBlockLock,
-    refreshBlockLock,
-    updateRoomCursor
+    refreshBlockLock
 } from "./collaboration.room.js";
 
 import { applyDocumentUpdate } from "./yjs.document.js";
@@ -185,14 +184,6 @@ export const createWebSocketServer = (server) => {
                                         reason: result.reason
                                     }));
                                 }
-                                break;
-                            }
-
-                            case "cursor:update": {
-                                if (!ws.userId) {
-                                    return;
-                                }
-                                updateRoomCursor(documentId, ws, data);
                                 break;
                             }
 

@@ -1,6 +1,5 @@
 import React, { useRef, useCallback } from "react";
 import BlockRenderer from "./BlockRenderer";
-import RemoteCursorOverlay from "./RemoteCursorOverlay";
 import { useEditorContext } from "../../context/EditorContext";
 
 const Block = React.memo(
@@ -12,8 +11,6 @@ const Block = React.memo(
         isLockedByOther,
         isLockedBySelf,
         currentLock,
-        remoteCursors = [],
-        collaborationInstance = null,
         currentUser,
         onAcquireLock,
         onReleaseLock,
@@ -63,16 +60,7 @@ const Block = React.memo(
             } else {
                 setSelection(null, null);
             }
-
-            if (collaborationInstance && collaborationInstance.sendCursorUpdate) {
-                collaborationInstance.sendCursorUpdate({
-                    blockId,
-                    offset: endPos,
-                    startOffset: minOffset !== maxOffset ? minOffset : undefined,
-                    endOffset: minOffset !== maxOffset ? maxOffset : undefined
-                });
-            }
-        }, [blockId, setCursor, setSelection, collaborationInstance]);
+        }, [blockId, setCursor, setSelection]);
 
         const handleBlockClick = (e) => {
             if (blockId) {
@@ -148,9 +136,6 @@ const Block = React.memo(
                         updateASTNode={updateASTNode}
                     />
                 </div>
-
-                {/* Remote Cursors & Selection Overlay */}
-                <RemoteCursorOverlay remoteCursors={remoteCursors} />
             </div>
         );
     },
@@ -162,8 +147,7 @@ const Block = React.memo(
             prevProps.isLockedByOther === nextProps.isLockedByOther &&
             prevProps.isLockedBySelf === nextProps.isLockedBySelf &&
             prevProps.currentLock === nextProps.currentLock &&
-            prevProps.currentUser === nextProps.currentUser &&
-            prevProps.remoteCursors === nextProps.remoteCursors
+            prevProps.currentUser === nextProps.currentUser
         );
     }
 );

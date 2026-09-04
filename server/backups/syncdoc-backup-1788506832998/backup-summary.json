@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-09-04T07:27:13.051Z",
+  "database": "syncdoc",
+  "backupDir": "C:\\Users\\sahil\\Desktop\\Internship sem 8\\Infotact Solutions\\SyncDoc\\server\\backups\\syncdoc-backup-1788506832998",
+  "collections": {
+    "astnodes": 6,
+    "documents": 1
+  }
+}

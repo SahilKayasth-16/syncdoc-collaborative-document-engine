@@ -75,7 +75,7 @@ function sleep(ms) {
 }
 
 async function seedTestDocument(title) {
-    const doc = await createDocument(title);
+    const doc = await createDocument(title, false);
     const documentId = doc._id.toString();
     const rootNodeId = doc.rootNodeId;
 

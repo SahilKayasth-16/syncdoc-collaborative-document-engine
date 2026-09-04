@@ -1,0 +1,18 @@
+[
+  {
+    "_id": {
+      "$oid": "6a9a6772bb3339c024a251fb"
+    },
+    "title": "Week 3 Demo Document",
+    "rootNodeId": {
+      "$oid": "6a9a6772bb3339c024a251fc"
+    },
+    "createdAt": {
+      "$date": "2026-09-04T06:38:42.878Z"
+    },
+    "updatedAt": {
+      "$date": "2026-09-04T06:38:42.878Z"
+    },
+    "__v": 0
+  }
+]
