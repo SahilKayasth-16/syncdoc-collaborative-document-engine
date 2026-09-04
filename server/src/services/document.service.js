@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Document from "../models/Document.js";
 import ASTNode from "../models/ASTNode.js";
-import { sanitizePlainText } from "../security/sanitizer.js";
+import { sanitizePlainText, sanitizeASTNode } from "../security/sanitizer.js";
 import { getRoom } from "../websocket/collaboration.room.js";
 import { getYDocumentBlocks } from "./ast-crdt.service.js";
 
@@ -137,7 +137,7 @@ export const getDocumentTree = async (documentId) => {
             const documentMap = activeRoom.ydoc.getMap("document");
             const liveTitle = documentMap.get("title");
             if (liveTitle) {
-                document.title = liveTitle;
+                document.title = sanitizePlainText(liveTitle);
             }
 
             const liveBlocks = getYDocumentBlocks(activeRoom.ydoc);
@@ -146,7 +146,9 @@ export const getDocumentTree = async (documentId) => {
                 if (bId && nodeMap.has(bId)) {
                     const node = nodeMap.get(bId);
                     if (liveBlock.data && typeof liveBlock.data === "object") {
-                        node.data = { ...node.data, ...liveBlock.data };
+                        const sanitizedNode = sanitizeASTNode({ type: node.type, data: liveBlock.data });
+                        const sanitizedLiveData = sanitizedNode ? sanitizedNode.data : liveBlock.data;
+                        node.data = { ...node.data, ...sanitizedLiveData };
                         // Persist live updated data to MongoDB asynchronously
                         ASTNode.updateOne({ _id: node.id }, { $set: { data: node.data } }).catch(() => {});
                     }
