@@ -44,6 +44,8 @@ export const createCollaborationConnection = (
                         callbacks.onPresenceUpdate?.(message.users || []);
                     } else if (message.type === "locks:update") {
                         callbacks.onLocksUpdate?.(message.locks || []);
+                    } else if (message.type === "cursors:update") {
+                        callbacks.onCursorsUpdate?.(message.cursors || []);
                     } else if (message.type === "lock:acquired") {
                         callbacks.onLockAcquired?.(message);
                     } else if (message.type === "lock:rejected") {
@@ -150,6 +152,18 @@ export const createCollaborationConnection = (
                 ws.send(JSON.stringify({
                     type: "lock:refresh",
                     blockId
+                }));
+            }
+        },
+
+        sendCursorUpdate(cursorData) {
+            if (ws.readyState === WebSocket.OPEN && cursorData && cursorData.blockId) {
+                ws.send(JSON.stringify({
+                    type: "cursor:update",
+                    blockId: String(cursorData.blockId),
+                    offset: Math.max(0, Number(cursorData.offset) || 0),
+                    startOffset: cursorData.startOffset !== undefined ? Math.max(0, Number(cursorData.startOffset) || 0) : undefined,
+                    endOffset: cursorData.endOffset !== undefined ? Math.max(0, Number(cursorData.endOffset) || 0) : undefined
                 }));
             }
         },

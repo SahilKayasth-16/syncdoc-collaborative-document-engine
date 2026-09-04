@@ -21,6 +21,7 @@ const Editor = ({ documentId }) => {
 
     const [activeUsers, setActiveUsers] = useState([]);
     const [blockLocks, setBlockLocks] = useState([]);
+    const [remoteCursors, setRemoteCursors] = useState([]);
 
     const [currentUser] = useState(() => {
         const id = Math.floor(100 + Math.random() * 900);
@@ -85,6 +86,12 @@ const Editor = ({ documentId }) => {
                         onLocksUpdate: (locks) => {
                             if (!cancelled) {
                                 setBlockLocks(locks);
+                            }
+                        },
+
+                        onCursorsUpdate: (cursors) => {
+                            if (!cancelled) {
+                                setRemoteCursors(cursors);
                             }
                         },
 
@@ -431,6 +438,8 @@ const Editor = ({ documentId }) => {
                         <BlockList
                             nodes={nodes}
                             blockLocks={blockLocks}
+                            remoteCursors={remoteCursors}
+                            collaborationInstance={collaborationInstance}
                             currentUser={currentUser}
                             onAcquireLock={handleAcquireLock}
                             onReleaseLock={handleReleaseLock}

@@ -4,6 +4,8 @@ import { useEditorContext } from "../../context/EditorContext";
 const BlockList = ({
     nodes = [],
     blockLocks = [],
+    remoteCursors = [],
+    collaborationInstance = null,
     currentUser = null,
     onAcquireLock,
     onReleaseLock
@@ -23,6 +25,10 @@ const BlockList = ({
             {nodes.map((node) => {
                 const blockId = (node.id || node._id)?.toString();
                 const currentLock = blockLocks.find((l) => l.blockId === blockId);
+
+                const blockRemoteCursors = remoteCursors.filter(
+                    (c) => c.blockId === blockId && (!currentUser || c.userId !== currentUser.userId)
+                );
 
                 const isLockedByOther = Boolean(
                     currentLock && (!currentUser || currentLock.userId !== currentUser.userId)
@@ -56,6 +62,8 @@ const BlockList = ({
                         isLockedByOther={isLockedByOther}
                         isLockedBySelf={isLockedBySelf}
                         currentLock={currentLock}
+                        remoteCursors={blockRemoteCursors}
+                        collaborationInstance={collaborationInstance}
                         currentUser={currentUser}
                         onAcquireLock={onAcquireLock}
                         onReleaseLock={onReleaseLock}
