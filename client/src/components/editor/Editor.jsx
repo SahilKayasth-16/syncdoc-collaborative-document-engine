@@ -21,6 +21,7 @@ const Editor = ({ documentId }) => {
 
     const [activeUsers, setActiveUsers] = useState([]);
     const [blockLocks, setBlockLocks] = useState([]);
+    const [remoteCursors, setRemoteCursors] = useState([]);
 
     const [currentUser] = useState(() => {
         const id = Math.floor(100 + Math.random() * 900);
@@ -85,6 +86,12 @@ const Editor = ({ documentId }) => {
                         onLocksUpdate: (locks) => {
                             if (!cancelled) {
                                 setBlockLocks(locks);
+                            }
+                        },
+
+                        onCursorsUpdate: (cursors) => {
+                            if (!cancelled) {
+                                setRemoteCursors(cursors);
                             }
                         },
 
@@ -252,6 +259,12 @@ const Editor = ({ documentId }) => {
             collaborationInstance.releaseBlockLock(blockId);
         }
     };
+
+    const handleSendCursorUpdate = useCallback((cursorData) => {
+        if (collaborationInstance && collaborationInstance.sendCursorUpdate) {
+            collaborationInstance.sendCursorUpdate(cursorData);
+        }
+    }, [collaborationInstance]);
 
     /**
      * Targeted update of a specific AST node in state.
@@ -431,9 +444,11 @@ const Editor = ({ documentId }) => {
                         <BlockList
                             nodes={nodes}
                             blockLocks={blockLocks}
+                            remoteCursors={remoteCursors}
                             currentUser={currentUser}
                             onAcquireLock={handleAcquireLock}
                             onReleaseLock={handleReleaseLock}
+                            onSendCursor={handleSendCursorUpdate}
                         />
                     </main>
 

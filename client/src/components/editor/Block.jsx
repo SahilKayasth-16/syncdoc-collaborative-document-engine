@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from "react";
 import BlockRenderer from "./BlockRenderer";
+import RemoteCursorOverlay from "./RemoteCursorOverlay";
 import { useEditorContext } from "../../context/EditorContext";
 
 const Block = React.memo(
@@ -11,9 +12,11 @@ const Block = React.memo(
         isLockedByOther,
         isLockedBySelf,
         currentLock,
+        remoteCursors = [],
         currentUser,
         onAcquireLock,
         onReleaseLock,
+        onSendCursor,
         updateASTNode
     }) => {
         // Diagnostic render logging to verify targeted re-rendering (Requirement 16)
@@ -23,7 +26,8 @@ const Block = React.memo(
         const { setActiveBlock, setCursor, setSelection } = useEditorContext();
 
         /**
-         * Calculates character offset position reliably inside editable block content.
+         * Calculates character offset position reliably inside editable block content
+         * and broadcasts local cursor position to remote collaborators via WebSocket.
          */
         const updateSelectionAndCursor = useCallback(() => {
             if (!blockId || !blockRef.current) return;
@@ -60,7 +64,14 @@ const Block = React.memo(
             } else {
                 setSelection(null, null);
             }
-        }, [blockId, setCursor, setSelection]);
+
+            onSendCursor?.({
+                blockId,
+                offset: endPos,
+                startOffset: minOffset,
+                endOffset: maxOffset
+            });
+        }, [blockId, setCursor, setSelection, onSendCursor]);
 
         const handleBlockClick = (e) => {
             if (blockId) {
@@ -76,8 +87,12 @@ const Block = React.memo(
                 onKeyUp={updateSelectionAndCursor}
                 onMouseUp={updateSelectionAndCursor}
                 className={`editor-block ${isActive ? "active-block" : ""} ${isSelected ? "selected-block" : ""} ${isLockedByOther ? "block-locked-by-other" : ""} ${isLockedBySelf ? "block-locked-by-self" : ""}`}
+                style={{ position: "relative" }}
                 data-block-id={blockId}
             >
+                {/* Remote Caret & Selection Overlay */}
+                <RemoteCursorOverlay blockRef={blockRef} remoteCursors={remoteCursors} />
+
                 {/* Block Lock Toolbar */}
                 <div className="block-lock-toolbar">
                     {isLockedByOther && (
@@ -147,6 +162,7 @@ const Block = React.memo(
             prevProps.isLockedByOther === nextProps.isLockedByOther &&
             prevProps.isLockedBySelf === nextProps.isLockedBySelf &&
             prevProps.currentLock === nextProps.currentLock &&
+            prevProps.remoteCursors === nextProps.remoteCursors &&
             prevProps.currentUser === nextProps.currentUser
         );
     }

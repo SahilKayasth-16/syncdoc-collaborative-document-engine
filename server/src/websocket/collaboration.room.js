@@ -110,6 +110,7 @@ export const getOrCreateRoom = async (documentId) => {
                 clients: new Set(),
                 presence: new Map(), // Map<userId, userInfo>
                 locks: new Map(),     // Map<blockId, lock>
+                cursors: new Map(),   // Map<userId, cursorInfo> (EPHEMERAL)
                 cleanupInterval: null
             };
 
@@ -202,6 +203,13 @@ export const removeClientFromRoom = (documentId, client) => {
 
     if (client.userId) {
         removeUserPresence(documentId, client);
+        if (room && room.cursors && room.cursors.has(client.userId)) {
+            room.cursors.delete(client.userId);
+            broadcastJsonMessage(documentId, {
+                type: "cursors:update",
+                cursors: Array.from(room.cursors.values())
+            });
+        }
     }
 
     if (room.clients.size === 0) {
@@ -627,4 +635,87 @@ export const cleanupStaleLocks = (documentId, timeoutMs = 30000) => {
             locks: Array.from(room.locks.values())
         });
     }
+};
+
+/* ==================================================
+ * DAY 21/22 EPHEMERAL CURSOR & SELECTION HELPERS
+ * ================================================== */
+
+const USER_COLORS = [
+    "#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"
+];
+
+export const getUserColor = (userId) => {
+    if (!userId) return USER_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+        hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % USER_COLORS.length;
+    return USER_COLORS[index];
+};
+
+/**
+ * Update ephemeral cursor / selection state for a user and broadcast to room.
+ *
+ * Ephemeral rule: Never persisted to MongoDB or Y.Doc.
+ *
+ * @param {string} documentId
+ * @param {WebSocket} wsClient
+ * @param {object} cursorData
+ * @returns {object} result
+ */
+export const updateRoomCursor = (documentId, wsClient, cursorData) => {
+    const room = rooms.get(documentId);
+    if (!room || !wsClient.userId || !cursorData) {
+        return { success: false, reason: "INVALID_REQUEST" };
+    }
+
+    const userId = wsClient.userId;
+    const blockId = cursorData.blockId ? String(cursorData.blockId) : null;
+
+    if (!blockId) {
+        room.cursors.delete(userId);
+        broadcastJsonMessage(documentId, {
+            type: "cursors:update",
+            cursors: Array.from(room.cursors.values())
+        });
+        return { success: true };
+    }
+
+    const offset = Math.max(0, Number.isFinite(Number(cursorData.offset)) ? Math.floor(Number(cursorData.offset)) : 0);
+    const startOffset = Number.isFinite(Number(cursorData.startOffset)) ? Math.max(0, Math.floor(Number(cursorData.startOffset))) : undefined;
+    const endOffset = Number.isFinite(Number(cursorData.endOffset)) ? Math.max(0, Math.floor(Number(cursorData.endOffset))) : undefined;
+
+    const cursorInfo = {
+        userId,
+        name: wsClient.userName || `User ${userId}`,
+        color: getUserColor(userId),
+        blockId,
+        offset,
+        startOffset,
+        endOffset,
+        updatedAt: Date.now()
+    };
+
+    room.cursors.set(userId, cursorInfo);
+
+    broadcastJsonMessage(documentId, {
+        type: "cursors:update",
+        cursors: Array.from(room.cursors.values())
+    });
+
+    return { success: true, cursor: cursorInfo };
+};
+
+/**
+ * Get active cursors list in room.
+ *
+ * @param {string} documentId
+ * @returns {Array<object>}
+ */
+export const getCursorsList = (documentId) => {
+    const room = rooms.get(documentId);
+    if (!room || !room.cursors) return [];
+    return Array.from(room.cursors.values());
 };

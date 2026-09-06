@@ -1,186 +1,328 @@
-# SyncDoc — Mid-Project Review Documentation
+Yep bro — this should be **short enough to present**, but still cover **all required topics + diagrams + what each diagram means**.
 
-This document prepares **SyncDoc** for the Mid-Project Review, detailing the structural transformation pipeline, architecture mappings, race condition resolution, and empirical 10-client concurrent stress testing results.
+# SyncDoc — Mid Project Review
 
----
+## 1. Project Overview
 
-## 1. Document Structure Transformation Pipeline
+**SyncDoc** is a real-time collaborative document editor where multiple users can edit the same document simultaneously.
 
-SyncDoc represents documents across four distinct architectural layers:
+The project is built in two main stages:
 
-```text
-[1. Markdown Document]
-         ↓  (AST Parser / Initializer)
-[2. AST Node Tree]
-         ↓  (Room Load & Serialization)
-[3. Collaborative Yjs CRDT State (Y.Doc / Y.Array)]
-         ↓  (MongoDB Storage Adapter)
-[4. MongoDB Persistence Collection (Document + ASTNode)]
-```
+* **Week 1:** Document structure + React editor
+* **Week 2:** Real-time collaboration + synchronization
 
----
-
-### Layer 1: Raw Markdown Source
-```markdown
-# Introduction
-
-This is SyncDoc.
-
-```js
-console.log("Hello");
-```
-```
-
----
-
-### Layer 2: Abstract Syntax Tree (AST Node Tree)
-The document is parsed into a tree rooted at a document container node:
+### Overall Architecture
 
 ```text
-Root Document (id: doc-root-001)
-├── Heading (id: node-h1-001, level: 1, pos: 10000)
-│   └── content: "Introduction"
-├── Paragraph (id: node-p1-001, pos: 20000)
-│   └── content: "This is SyncDoc."
-└── CodeBlock (id: node-c1-001, lang: "javascript", pos: 30000)
-    └── content: "console.log(\"Hello\");"
+                    SyncDoc
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+       Backend                   Frontend
+          │                         │
+    ┌─────┴─────┐                   │
+    │           │                   │
+ MongoDB    WebSocket              React
+    │           │                   │
+   AST          Yjs               Editor
+    │           │                   │
+    └─────┬─────┘                   │
+          │                         │
+          └──── Collaboration ─────┘
+```
+
+**Explanation:**
+MongoDB stores the structured document, Yjs manages real-time collaborative state, WebSocket transfers updates, and React displays the document to users.
+
+---
+
+# 2. Week 1 — Backend: AST Modeling
+
+Instead of storing the complete document as HTML/text, SyncDoc stores it as an **AST (Abstract Syntax Tree)**.
+
+### AST Structure
+
+```text
+Document
+│
+├── Section
+│   ├── Heading
+│   ├── Paragraph
+│   └── Paragraph
+│
+├── Section
+│   └── Code Block
+│
+└── Quote
+```
+
+Each node contains:
+
+```text
+documentId
+parentId
+type
+position
+data
+```
+
+**Explanation:**
+This gives every document block a clear type, parent, position, and content, making the document easier to validate and synchronize.
+
+---
+
+# 3. Recursive AST Validation
+
+The backend validates the document hierarchy before saving.
+
+```text
+AST Node Save
+      ↓
+Mongoose Pre-Save Hook
+      ↓
+Recursive Tree Validation
+      ↓
+Valid?
+   /     \
+ Yes      No
+ ↓        ↓
+Save    Reject
+```
+
+**Explanation:**
+The validator checks parent-child relationships, document ownership, duplicate/circular relationships, and invalid/orphan nodes.
+
+---
+
+# 4. Week 1 — Frontend: Block Editor
+
+The React frontend renders AST nodes as individual blocks.
+
+```text
+AST Type          React Component
+
+heading       →   HeadingBlock
+paragraph     →   ParagraphBlock
+code_block    →   CodeBlock
+list          →   ListBlock
+quote         →   QuoteBlock
+```
+
+**Explanation:**
+Instead of one large editor, SyncDoc treats the document as independent blocks. This becomes important for collaborative editing and block-level locking.
+
+---
+
+# 5. Week 2 — Backend: WebSocket + Yjs
+
+Real-time collaboration was added using **WebSocket + Yjs CRDT**.
+
+```text
+User A
+   │
+   │ WebSocket
+   ↓
+Collaboration Room
+      │
+     Yjs
+      │
+   ↑  │  ↓
+   │  │  │
+User B User C
+```
+
+**Explanation:**
+Users editing the same document join the same collaboration room. WebSocket provides real-time communication, while Yjs maintains the shared collaborative state and handles concurrent changes.
+
+---
+
+# 6. Localized Block Locking
+
+SyncDoc uses **block-level locking**, not a document-wide lock.
+
+```text
+Document
+│
+├── Block 1 → 🔒 User A
+├── Block 2 → Available
+├── Block 3 → 🔒 User B
+└── Block 4 → Available
+```
+
+**Explanation:**
+User A and User B can edit different blocks simultaneously. If User A is editing Block 1, another user cannot simultaneously edit that same block.
+
+**CRDT and locking have different roles:**
+
+```text
+Yjs CRDT  → Synchronization & convergence
+Locking   → Editing permission for a block
 ```
 
 ---
 
-### Layer 3: Collaborative JSON / Yjs Shared Structure (CRDT)
-When a room initializes, the AST is loaded into a flat collaborative `Y.Array` stored inside `Y.Map("document")`:
+# 7. Week 2 — Frontend Synchronization
 
-```json
-{
-  "document": {
-    "title": "SyncDoc Review Demo",
-    "blocks": [
-      {
-        "id": "node-h1-001",
-        "type": "heading",
-        "position": 10000,
-        "data": {
-          "level": 1,
-          "content": "Introduction"
-        },
-        "children": []
-      },
-      {
-        "id": "node-p1-001",
-        "type": "paragraph",
-        "position": 20000,
-        "data": {
-          "content": "This is SyncDoc."
-        },
-        "children": []
-      },
-      {
-        "id": "node-c1-001",
-        "type": "code_block",
-        "position": 30000,
-        "data": {
-          "language": "javascript",
-          "content": "console.log(\"Hello\");"
-        },
-        "children": []
-      }
-    ]
-  }
-}
+The React client connects to the Yjs collaboration room through WebSocket.
+
+```text
+User B edits
+     ↓
+Yjs Update
+     ↓
+WebSocket
+     ↓
+User A Client
+     ↓
+React Editor
 ```
+
+**Explanation:**
+Changes made by one user are transmitted to other connected users and reflected in their editor without refreshing the page.
 
 ---
 
-### Layer 4: MongoDB Persistence Models (Database Representation)
+# 8. User Presence
 
-#### A. Document Collection (`Document`)
-```json
-{
-  "_id": "6a89ce2bc080a599aafb9097",
-  "title": "SyncDoc Review Demo",
-  "rootNodeId": "6a89ce2bc080a599aafb9098",
-  "createdAt": "2026-08-22T21:56:44.100Z",
-  "updatedAt": "2026-08-22T21:56:44.100Z"
-}
+The collaboration room also tracks connected users.
+
+```text
+        Document Room
+        /     |      \
+       ↓      ↓       ↓
+    User A  User B  User C
 ```
 
-#### B. ASTNode Collection (`ASTNode` documents)
-
-**1. Root Document Node:**
-```json
-{
-  "_id": "6a89ce2bc080a599aafb9098",
-  "documentId": "6a89ce2bc080a599aafb9097",
-  "parentId": null,
-  "type": "document",
-  "position": 0,
-  "data": {}
-}
-```
-
-**2. Heading Block:**
-```json
-{
-  "_id": "6a89ce2bc080a599aafb90a4",
-  "documentId": "6a89ce2bc080a599aafb9097",
-  "parentId": "6a89ce2bc080a599aafb9098",
-  "type": "heading",
-  "position": 10000,
-  "data": {
-    "level": 1,
-    "content": "Introduction"
-  }
-}
-```
-
-**3. Paragraph Block:**
-```json
-{
-  "_id": "6a89ce2bc080a599aafb90a9",
-  "documentId": "6a89ce2bc080a599aafb9097",
-  "parentId": "6a89ce2bc080a599aafb9098",
-  "type": "paragraph",
-  "position": 20000,
-  "data": {
-    "content": "This is SyncDoc."
-  }
-}
-```
-
-**4. Code Block:**
-```json
-{
-  "_id": "6a89ce2bc080a599aafb90ae",
-  "documentId": "6a89ce2bc080a599aafb9097",
-  "parentId": "6a89ce2bc080a599aafb9098",
-  "type": "code_block",
-  "position": 30000,
-  "data": {
-    "language": "javascript",
-    "content": "console.log(\"Hello\");"
-  }
-}
-```
+**Explanation:**
+This provides the foundation for showing which users are currently working on the document.
 
 ---
 
-## 2. Race Condition Verification (Rapid Connect / Disconnect)
+# 9. Mid-Review Sanity Check
 
-- **Identified Risk**: Asynchronous room creation awaiting MongoDB AST loading could cause `removeClientFromRoom()` to execute before the room promise resolved and entered the `rooms` map. When room loading finished, `addClientToRoom()` added the closed WebSocket, causing a permanent memory leak.
-- **Verification & Resolution**:
-  - `addClientToRoom()` checks `client.readyState === 1` (`WebSocket.OPEN`). Closed sockets are discarded immediately, and empty rooms are cleaned up via `removeRoom()`.
-  - `websocket.server.js` checks `if (ws.readyState !== 1) return;` post-initialization.
-  - Stress Test 8 programmatically verified that 5 rapid connect/disconnect cycles leave 0 leaked rooms.
+The document passes through different representations:
+
+```text
+Markdown / Input
+       ↓
+      AST
+       ↓
+   MongoDB
+       ↓
+    Yjs CRDT
+       ↓
+   WebSocket
+       ↓
+React Clients
+```
+
+**Explanation:**
+AST represents document structure, MongoDB provides persistence, Yjs handles collaboration, WebSocket transports updates, and React renders the result.
 
 ---
 
-## 3. 10 Concurrent Clients Conflict Resolution Stress Test
+# 10. 10-Client Stress Test
 
-- **Execution Script**: `server/scripts/test-10-clients-stress.js`
-- **Result Summary**:
-  - 10 WebSocket clients connected simultaneously to the same collaboration room.
-  - Presence list verified 10 active concurrent users (`user-1` to `user-10`).
-  - Concurrent edits were triggered across all 10 clients simultaneously.
-  - **CRDT Convergence**: All 10 clients converged to 100% identical Y.Doc state strings.
-  - **Graceful Cleanup**: Disconnecting clients in two batches of 5 resulted in accurate presence updates and 100% room cleanup when the last client disconnected (`rooms.size === 0`).
+The collaboration system was tested with **10 concurrent clients**.
+
+```text
+ Client 1 ─┐
+ Client 2 ─┤
+ Client 3 ─┤
+ Client 4 ─┤
+    ...    ├──→ Same Document / Yjs Room
+ Client 9 ─┤
+ Client 10─┘
+              ↓
+       Concurrent Operations
+              ↓
+       Final State Comparison
+              ↓
+          All Converge
+```
+
+**What was verified:**
+
+* 10 clients connected simultaneously
+* Concurrent operations were handled
+* Clients reached the same final state
+* No duplicate blocks
+* No lost updates
+* Collaboration rooms were cleaned after disconnect
+
+**Explanation:**
+This proves that the collaboration layer can handle multiple users editing the same document concurrently.
+
+---
+
+# 11. Frontend Delta Tracking
+
+The frontend must handle remote changes without destroying local editing state.
+
+```text
+Remote Yjs Update
+       ↓
+Collaboration Service
+       ↓
+Updated Block
+       ↓
+React State
+       ↓
+Editor
+```
+
+```text
+Block 1 → unchanged
+Block 2 → UPDATED
+Block 3 → unchanged
+Block 4 → unchanged
+```
+
+**Explanation:**
+Only the affected block is updated instead of unnecessarily replacing the complete editor state. This helps prevent remote updates from corrupting unrelated local input.
+
+---
+
+# 12. Mid-Project Status
+
+| Area                    | Status     |
+| ----------------------- | ---------- |
+| AST Modeling            | ✅ Complete |
+| Recursive Validation    | ✅ Complete |
+| React Block Editor      | ✅ Complete |
+| WebSocket Collaboration | ✅ Complete |
+| Yjs CRDT                | ✅ Complete |
+| Block Locking           | ✅ Complete |
+| Initial Sync            | ✅ Complete |
+| User Presence           | ✅ Complete |
+| 10-Client Stress Test   | ✅ Verified |
+| Frontend Delta Tracking | ✅ Verified |
+
+## Final Architecture
+
+```text
+                 SyncDoc
+                    │
+             Structured AST
+                    │
+                MongoDB
+                    │
+             ┌──────┴──────┐
+             │             │
+            Yjs        Persistence
+             │
+         WebSocket
+             │
+      ┌──────┼──────┐
+      ↓      ↓      ↓
+    User A User B User C
+      │      │      │
+      └──── React ──┘
+           Editor
+```
+
+### Final Explanation
+
+> **Week 1 established the structured AST backend and React block editor. Week 2 added Yjs CRDT collaboration over WebSockets, localized block locking, synchronization, and user presence. The mid-project verification then demonstrated concurrent collaboration using 10 clients and confirmed that the frontend can process incoming deltas without corrupting local editor state.**
+
+This is the version I'd use for the **actual mid-review document/presentation**—short, technical enough for the evaluator, and every diagram has a clear purpose.
