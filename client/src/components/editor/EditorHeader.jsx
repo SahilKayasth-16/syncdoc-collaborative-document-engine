@@ -1,5 +1,19 @@
 import { Link } from "react-router-dom";
 
+const USER_COLORS = [
+    "#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#EF4444", "#EC4899", "#14B8A6", "#F97316"
+];
+
+function getUserColor(userId) {
+    if (!userId) return USER_COLORS[0];
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+        hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % USER_COLORS.length;
+    return USER_COLORS[index];
+}
+
 const EditorHeader = ({ documentId = null, title = "Untitled document", activeUsers = [], currentUser = null }) => {
     return (
         <header className="editor-header" id="editor-header">
@@ -49,13 +63,15 @@ const EditorHeader = ({ documentId = null, title = "Untitled document", activeUs
                         <div className="user-badges-container">
                             {activeUsers.map((u) => {
                                 const isSelf = currentUser && u.userId === currentUser.userId;
+                                const userColor = getUserColor(u.userId);
                                 return (
                                     <span
                                         key={u.userId}
                                         className={`user-badge ${isSelf ? "user-badge-self" : ""}`}
+                                        style={{ borderColor: userColor }}
                                         title={isSelf ? `${u.name} (You)` : u.name}
                                     >
-                                        <span className="user-online-dot"></span>
+                                        <span className="user-online-dot" style={{ backgroundColor: userColor, boxShadow: `0 0 6px ${userColor}` }}></span>
                                         {u.name} {isSelf ? "(You)" : ""}
                                     </span>
                                 );
@@ -68,4 +84,4 @@ const EditorHeader = ({ documentId = null, title = "Untitled document", activeUs
     );
 };
 
-export default EditorHeader;
+export default EditorHeader;

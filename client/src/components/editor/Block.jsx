@@ -26,6 +26,7 @@ const Block = React.memo(
         const { setActiveBlock, setCursor, setSelection } = useEditorContext();
 
         /**
+         * Calculates character offset position reliably inside editable block content.
          * Calculates character offset position reliably inside editable block content
          * and broadcasts local cursor position to remote collaborators via WebSocket.
          */

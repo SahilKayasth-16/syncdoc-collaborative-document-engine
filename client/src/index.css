@@ -788,15 +788,32 @@ body {
   transition: var(--transition);
   border-radius: 8px;
   margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid transparent;
+}
+
+.editor-block.active-block {
+  border-left: 3px solid #8b5cf6;
+  border-top: 1px solid rgba(139, 92, 246, 0.3);
+  border-right: 1px solid rgba(139, 92, 246, 0.3);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+  background: rgba(139, 92, 246, 0.03);
+}
+
+.editor-block.selected-block {
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  background: rgba(59, 130, 246, 0.05);
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
 }
 
 .block-locked-by-other {
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.03);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.03);
 }
 
 .block-locked-by-self {
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  border: 1px solid rgba(139, 92, 246, 0.4);
   background: rgba(139, 92, 246, 0.03);
 }
 
@@ -818,9 +835,9 @@ body {
 }
 
 .lock-banner-other {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .lock-banner-self {
@@ -883,11 +900,25 @@ body {
   user-select: none;
 }
 
-/* Day 15 — Active Block & Local State UI */
-.editor-block.active-block {
-  border: 1px solid rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
-  background: rgba(139, 92, 246, 0.02);
+/* Remote Cursor Caret Line Animation */
+@keyframes remoteCaretPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.remote-caret-line {
+  animation: remoteCaretPulse 1.5s infinite ease-in-out;
+  box-shadow: 0 0 4px currentColor;
+}
+
+.remote-cursor-pill {
+  transition: all 0.15s ease-out;
+  letter-spacing: 0.02em;
+}
+
+.remote-selection-highlight {
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
 }
 
 .status-metrics {
